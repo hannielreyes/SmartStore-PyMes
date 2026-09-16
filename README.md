@@ -1,0 +1,108 @@
+# SmartStorePyMEs — Camera (Android) setup & test
+
+Este repositorio ya incluye soporte para cámara usando `flet_camera`. Aquí están los pasos y comprobaciones para asegurarte de que la cámara funcione en Android al instalar la app.
+
+## Resumen de lo que ya configuré
+
+- `flet_camera` añadido a `pyproject.toml` y a `build/python-app/pyproject.toml`.
+- `requirements.txt` creado con `flet` y `flet_camera`.
+- Permiso de cámara añadido: `[tool.flet.android.permission] "android.permission.CAMERA" = true`.
+- `utils.py` contiene la función `abrir_selector_imagen(...)` que usa `flet_camera` en Android.
+- `camera_test.py` creado como ejemplo mínimo para probar captura.
+
+## Requisitos previos
+
+- Python 3.10+ (tu entorno actual es Python 3.12 — OK).
+- `flet` y `flet_camera` instalados (se incluyen en `requirements.txt`).
+- `flet` CLI instalado globalmente si vas a usar `flet build`.
+- Dispositivo Android (o emulador) con cámara y USB debugging habilitado para pruebas.
+
+## Instalación local (entorno de desarrollo)
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+## Probar localmente (desktop)
+
+Ejecuta la app de prueba de cámara (ventana Flet):
+
+```bash
+python camera_test.py
+```
+
+- Esto muestra `Camera` y un botón `Capturar`. Si la vista previa no aparece en desktop, prueba en un dispositivo móvil.
+
+## Build para Android
+
+1. Asegúrate de que `pyproject.toml` (root o `build/python-app/pyproject.toml`) contenga `flet_camera` en `dependencies` y el permiso de cámara (ya configurado).
+2. Construye la APK con Flet (desde la raíz del repo):
+
+```bash
+flet build apk
+```
+
+(Dependiendo de tu versión de Flet, el comando puede variar; revisa `flet --help` si falla.)
+
+3. Instala la APK en el dispositivo y abre la app.
+
+```bash
+adb install -r path/to/your.apk
+```
+
+## Permisos en tiempo de ejecución
+
+- Android 6+ requiere permisos en tiempo de ejecución. El permiso está declarado en `pyproject.toml`, pero si la app no solicita automáticamente, abre Ajustes → Apps → tu app → Permisos y habilita la Cámara.
+
+## Uso dentro de la app
+
+- En el código se usa la función `abrir_selector_imagen(page, callback)` (ver `utils.py`). En Android, esta función muestra el control `fc.Camera` y captura una imagen con `camera.capture_image()`.
+- Por seguridad, la imagen se guarda localmente en `storage/data/temp/foto_<timestamp>.jpg` y la ruta se devuelve al `callback`.
+
+## Troubleshooting común
+
+- ImportError: asegúrate de ejecutar el `python` del entorno donde instalaste `flet_camera`.
+- Camera preview no aparece en Android: comprobar que el dispositivo tenga cámara, y revisar `adb logcat` para ver errores nativos.
+
+```bash
+adb logcat | grep -i flet
+```
+
+- Si la app falla al empaquetar: revisa que `flet` CLI use el mismo intérprete donde `flet_camera` está instalado.
+
+## Comprobaciones avanzadas (si algo falla)
+
+- Verifica que `flet_camera` esté realmente incluido en el ambiente que `flet build` utiliza (a veces `flet build` apunta a otro intérprete o entorno virtual).
+- Ejecuta `python -c "import flet_camera; print('OK', getattr(flet_camera,'__version__','no-version'))"` con el mismo `python` que usas para `flet build`.
+
+## Próximos pasos si quieres que automatice más
+
+- Añadir una pantalla de comprobación de permisos en la app (solicitar permisos en tiempo de ejecución si Flet lo permite).
+
+## Conexion de prueba con Supabase
+
+La conexion preparada usa la URL del proyecto y la clave `anon/public` mediante variables de entorno. La clave no debe escribirse en el codigo ni en el APK.
+
+En PowerShell, para probarla solo durante la sesion actual:
+
+```powershell
+$env:SMARTSTORE_SUPABASE_KEY = "PEGA_AQUI_TU_CLAVE_ANON_PUBLIC"
+python check_supabase.py
+```
+
+Si la prueba funciona, mostrara `Conexion correcta`. La URL se carga desde la configuracion local durante la ejecucion y el empaquetado.
+
+No uses una clave `service_role`, `secret` o similar en la aplicacion.
+
+## Migracion de la base compartida
+
+El esquema preparado para Supabase esta en `supabase_schema.sql`. Ejecutalo desde `SQL Editor` de Supabase antes de cambiar la aplicacion a la base central.
+
+La aplicacion aun conserva SQLite durante esta etapa para no mezclar datos ni perder informacion. Cuando el esquema este creado, se migrara la capa `database.py` a una API central y se exportaran los datos existentes.
+- Incluir logs de `adb` o un script de CI que valide la inclusión de `flet_camera` en el build.
+
+---
+
+Si quieres, procedo a:
+- añadir la verificación de permisos en la app (si confirmas que `flet` tiene API para solicitar permisos en runtime), o
+- crear un script `build_and_install.sh`/`.ps1` para automatizar build + instalación en el dispositivo.

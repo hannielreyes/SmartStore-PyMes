@@ -1,0 +1,26 @@
+# Secretos y configuracion local
+.env
+.env.*
+!.env.example
+supabase_build_config.py
+sesion.json
+smartstore.log
+
+# Archivos generados y datos locales
+build/
+temp/
+storage/
+websever/static/uploads/
+.flet/
+.pytest_cache/
+
+# Bases de datos locales
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
