@@ -2,13 +2,13 @@
 name = "SmartStorePyMEs"
 version = "0.1.0"
 dependencies = [
-    "flet",
-    "flet_camera",
+    "flet==0.86.5",
+    "flet_camera==0.86.5",
+    "paypal-checkout-sdk",
 ]
 
 [tool.flet.android.permission]
 "android.permission.CAMERA" = true
-"android.permission.RECORD_AUDIO" = true
 "android.permission.INTERNET" = true
 
 [tool.flet.app]

@@ -1,6 +1,8 @@
-# EL main.py sirve para ejecutar todo el el programa es el que llama a todas las funciones para que se muetren en pantalla es el corazon y el motor de la es el que despierta a la computadora
+ # EL main.py sirve para ejecutar todo el el programa es el que llama a todas las funciones para que se muetren en pantalla es el corazon y el motor de la es el que despierta a la computadora
+import asyncio
 import flet as ft 
 from utils import comprobar_actualizacion, mostrar_snackbar
+from app_state import cargar_contexto_usuario
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -16,7 +18,6 @@ from views.perfil import perfil_view
 from views.inventario import inventario_view
 from configuaraciones_adicionales.estadisticas import ajustes_adicionales_view, estadisticas_view
 from configuaraciones_adicionales.perfil_usuario import perfil_usuario_view
-from views.buscar_voz import buscar_voz_view  # <-- NUEVO
 import database as db
 
 def main(page: ft.Page):
@@ -54,7 +55,7 @@ def main(page: ft.Page):
     def mostrar_transicion(texto="Cargando..."):
         # PANTALLA TEMPORAL: muestra carga mientras se construye la siguiente vista.
         page.clean()
-        page.bgcolor = "white"
+        page.bgcolor = "#F5F7FA"
         page.add(
             ft.SafeArea(
                 ft.Column(
@@ -87,6 +88,11 @@ def main(page: ft.Page):
     def go_to_login():
         cancelar_animaciones_menu()
         from views.login import cargar_sesion
+        usuario_precargado = getattr(page, "_smartstore_start_user", None)
+        contexto_precargado = getattr(page, "_smartstore_context", None)
+        if usuario_precargado and contexto_precargado:
+            go_to_menu(usuario_precargado)
+            return
         correo, password = cargar_sesion(page)
         if correo and password:
             usuario = db.obtener_usuario(correo, password)
@@ -100,16 +106,45 @@ def main(page: ft.Page):
         # NAVEGACIÓN: abre la pantalla principal después de autenticar al usuario.
         nonlocal usuario_actual
         usuario_actual = usuario
+
+        contexto_existente = getattr(page, "_smartstore_context", None)
+        if contexto_existente and contexto_existente.get("usuario_id") == usuario_actual["id"]:
+            menu_view(page, usuario_actual, logout,
+                      go_to_registrar_producto,
+                      go_to_buscar_producto,
+                      go_to_carrito,
+                      go_to_crear_tienda,
+                      go_to_perfil,
+                      go_to_inventario,
+                      go_to_ajustes_adicionales,
+                      go_to_control_reservas,
+                      contexto=contexto_existente)
+            return
+
         mostrar_transicion("Cargando menú...")
-        menu_view(page, usuario_actual, logout,
-                  go_to_registrar_producto,
-                  go_to_buscar_producto,
-                  go_to_carrito,
-                  go_to_crear_tienda,
-                  go_to_perfil,
-                  go_to_inventario,
-                  go_to_ajustes_adicionales,
-                  go_to_control_reservas)
+
+        async def preparar_menu():
+            contexto = None
+            try:
+                contexto = await asyncio.to_thread(cargar_contexto_usuario, usuario_actual["id"])
+                page._smartstore_context = contexto
+            except Exception as error:
+                page._smartstore_context = None
+                from utils import log_error
+                log_error(f"No se pudo precargar el contexto del usuario: {error}")
+
+            menu_view(page, usuario_actual, logout,
+                      go_to_registrar_producto,
+                      go_to_buscar_producto,
+                      go_to_carrito,
+                      go_to_crear_tienda,
+                      go_to_perfil,
+                      go_to_inventario,
+                      go_to_ajustes_adicionales,
+                      go_to_control_reservas,
+                      contexto=getattr(page, "_smartstore_context", None))
+
+        page.run_task(preparar_menu)
 
     def go_to_registrar_producto():
         cancelar_animaciones_menu()
@@ -183,13 +218,6 @@ def main(page: ft.Page):
         mostrar_transicion("Cargando estadísticas...")
         estadisticas_view(page, usuario or usuario_actual, go_to_ajustes_adicionales)
 
-    # ==========================================
-    # NUEVO: BÚSQUEDA POR VOZ
-    # ==========================================
-    def go_to_buscar_voz():
-        cancelar_animaciones_menu()
-        buscar_voz_view(page, usuario_actual, go_to_menu)
-
     def logout():
         nonlocal usuario_actual
         usuario_actual = None
@@ -197,8 +225,31 @@ def main(page: ft.Page):
         borrar_sesion(page)
         login_view(page, usuario_actual, go_to_menu)
 
+    async def precargar_inicio():
+        """Prepara la sesión y sus datos mientras se muestra el pre-splash."""
+        from views.login import cargar_sesion
+
+        try:
+            correo, password = cargar_sesion(page)
+            if not correo or not password:
+                return
+            usuario = await asyncio.to_thread(db.obtener_usuario, correo, password)
+            if not usuario:
+                return
+            usuario_dict = {"id": usuario[0], "nombre": usuario[1], "correo": usuario[2]}
+            contexto = await asyncio.to_thread(cargar_contexto_usuario, usuario_dict["id"])
+            page._smartstore_start_user = usuario_dict
+            page._smartstore_context = contexto
+        except Exception as error:
+            from utils import log_error
+            log_error(f"No se pudo precargar el inicio: {error}")
+        finally:
+            page._smartstore_start_ready.set()
+
     # ARRANQUE: muestra la primera pantalla de carga y después inicia la actualización.
+    page._smartstore_start_ready = asyncio.Event()
     pre_splash_view(page, go_to_splash)
+    page.run_task(precargar_inicio)
     page.update()
     page.run_task(comprobar_actualizacion, page)
 

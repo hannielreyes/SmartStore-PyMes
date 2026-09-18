@@ -823,6 +823,49 @@ def obtener_productos():
     return productos
 
 
+def registrar_busqueda_sin_resultado(usuario_id, termino):
+    """Registra una oportunidad para otros usuarios, nunca para quien buscó."""
+    termino = str(termino or "").strip()
+    if not usuario_id or len(termino) < 4:
+        return False
+
+    if _supabase_activo():
+        _supabase_insertar(
+            "solicitudes_productos",
+            {"usuario_id": usuario_id, "termino": termino, "atendida": False},
+        )
+        return True
+
+    return False
+
+
+def obtener_oportunidades_productos(usuario_id, limite=20):
+    """Devuelve búsquedas de otros usuarios que aún no tienen producto publicado."""
+    if not _supabase_activo():
+        return []
+
+    solicitudes = _supabase_lista(
+        "solicitudes_productos",
+        f"?select=termino&atendida=eq.false&usuario_id=neq.{usuario_id}&order=creado_en.desc&limit={int(limite)}",
+    )
+    productos = _supabase_lista("productos", "?select=nombre")
+    nombres_productos = {
+        str(fila.get("nombre") or "").strip().lower()
+        for fila in productos
+        if fila.get("nombre")
+    }
+
+    oportunidades = []
+    vistos = set()
+    for solicitud in solicitudes:
+        termino = str(solicitud.get("termino") or "").strip()
+        clave = termino.lower()
+        if termino and clave not in nombres_productos and clave not in vistos:
+            vistos.add(clave)
+            oportunidades.append(termino)
+    return oportunidades
+
+
 def obtener_productos_usuario(usuario_id):
     if _supabase_activo():
         filas = _supabase_lista("productos", f"?select=id,nombre,marca,talla,precio_cordobas,precio_dolares,stock,tienda_id,imagen,imagen_2,categoria,descripcion,estado_producto,etiquetas,estilo,color_principal,material,garantia,especificacion,tiendas!inner(usuario_id)&tiendas.usuario_id=eq.{usuario_id}")

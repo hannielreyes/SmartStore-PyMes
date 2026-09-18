@@ -4,26 +4,49 @@
 Set-StrictMode -Version Latest
 
 $buildConfigPath = Join-Path $PSScriptRoot "supabase_build_config.py"
+$localPython = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
 $localFlet = Join-Path $PSScriptRoot ".venv\Scripts\flet.exe"
-$localGit = Join-Path $env:LOCALAPPDATA "Programs\Git\cmd"
-$androidSdk = Join-Path $env:USERPROFILE "Android\sdk"
 
-if (-not (Test-Path (Join-Path $androidSdk "platform-tools"))) {
-    $androidSdk = Join-Path $env:LOCALAPPDATA "Android\Sdk"
+if (-not (Test-Path $localPython)) {
+    throw "No se encontró el entorno Python del proyecto en $localPython. Ejecuta: py -m venv .venv y luego instala requirements.txt."
 }
-if (Test-Path (Join-Path $androidSdk "platform-tools")) {
+if (-not (Test-Path $localFlet)) {
+    throw "No se encontró el CLI de Flet en $localFlet. Instala requirements.txt dentro de .venv."
+}
+
+$androidSdkCandidates = @(
+    $env:ANDROID_HOME,
+    $env:ANDROID_SDK_ROOT,
+    "$env:LOCALAPPDATA\Android\Sdk",
+    "$env:USERPROFILE\AppData\Local\Android\Sdk",
+    "$env:USERPROFILE\Android\Sdk",
+    "$env:ProgramFiles\Android\Sdk",
+    "$env:ProgramFiles(x86)\Android\Sdk",
+    "C:\Android\Sdk",
+    "D:\Android\Sdk",
+    "E:\Android\Sdk",
+    "C:\Users\$env:USERNAME\AppData\Local\Android\Sdk",
+    "C:\Users\$env:USERPROFILE\AppData\Local\Android\Sdk"
+) | Where-Object { $_ -and $_.Trim() }
+
+$androidSdk = $null
+foreach ($candidate in $androidSdkCandidates) {
+    if (Test-Path (Join-Path $candidate "platform-tools")) {
+        $androidSdk = $candidate
+        break
+    }
+}
+
+if (-not $androidSdk) {
+    $androidSdk = $androidSdkCandidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+}
+
+if ($androidSdk -and (Test-Path (Join-Path $androidSdk "platform-tools"))) {
     $env:ANDROID_HOME = $androidSdk
     $env:ANDROID_SDK_ROOT = $androidSdk
     $env:Path = "$androidSdk\platform-tools;$androidSdk\cmdline-tools\latest\bin;$env:Path"
 } else {
-    throw "No se encontró el Android SDK. Ruta esperada: $androidSdk"
-}
-
-if (Test-Path (Join-Path $localGit "git.exe")) {
-    $env:Path = "$localGit;$env:Path"
-}
-if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    throw "Git no está instalado o no está disponible en PATH. Instala Git for Windows y vuelve a ejecutar este script."
+    throw "No se encontró el Android SDK. Instala Android Studio o el SDK de Android y asegúrate de que exista una ruta como: C:\Users\<tu_usuario>\AppData\Local\Android\Sdk . También puedes definir ANDROID_HOME o ANDROID_SDK_ROOT."
 }
 
 function Get-EnvValue([string]$name) {
@@ -44,27 +67,42 @@ function Upload-SupabaseFile([string]$path, [string]$remotePath, [string]$conten
     return "$supabaseUrl/storage/v1/object/public/smartstore-media/$remotePath"
 }
 
-function Publish-ApkToGitHub([string]$apkPath, [string]$appVersion) {
-    $repositoryApk = Join-Path $PSScriptRoot "build\apk\SmartStorePyMEs.apk"
-    Copy-Item $apkPath $repositoryApk -Force
+function Stop-StaleAndroidBuildProcesses {
+    $patterns = @('GradleDaemon', 'gradle', 'java', 'javaw')
+    foreach ($pattern in $patterns) {
+        $processes = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.Name -match $pattern -or ($_.CommandLine -and $_.CommandLine -match 'gradle|flutter|android|flet')
+            }
 
-    git add -f -- "$repositoryApk"
-    if ($LASTEXITCODE -ne 0) {
-        throw "No se pudo preparar el APK para Git."
+        foreach ($proc in $processes) {
+            try {
+                if ($proc.ProcessId -gt 0) {
+                    Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
+                    Write-Host "Detenido proceso stale: $($proc.Name) (PID $($proc.ProcessId))"
+                }
+            } catch {
+                Write-Warning "No se pudo detener $($proc.Name) (PID $($proc.ProcessId)): $($_.Exception.Message)"
+            }
+        }
     }
 
-    git commit --only -m "Publicar APK $appVersion" -- "$repositoryApk"
-    if ($LASTEXITCODE -eq 1) {
-        Write-Host "El APK no cambio; no se creo un commit nuevo."
-    } elseif ($LASTEXITCODE -ne 0) {
-        throw "No se pudo crear el commit del APK."
+    $lockPaths = @(
+        (Join-Path $PSScriptRoot "build\flutter\build"),
+        (Join-Path $PSScriptRoot "build\flutter\android\app\build"),
+        (Join-Path $PSScriptRoot ".gradle"),
+        (Join-Path $PSScriptRoot "build\flutter\build\file_picker\intermediates\lint-cache")
+    )
+
+    foreach ($path in $lockPaths) {
+        if (Test-Path $path) {
+            Remove-Item $path -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Host "Limpieza: $path"
+        }
     }
 
-    git push origin HEAD
-    if ($LASTEXITCODE -ne 0) {
-        throw "No se pudo subir el APK al repositorio remoto."
-    }
-    Write-Host "APK publicado en GitHub: build/apk/SmartStorePyMEs.apk"
+    Get-ChildItem -Path $PSScriptRoot -Recurse -Force -Filter *.lock -ErrorAction SilentlyContinue |
+        ForEach-Object { Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue }
 }
 
 $envPath = Join-Path $PSScriptRoot ".env"
@@ -100,18 +138,15 @@ APP_VERSION = '$($appVersion.Replace("'", "''"))'
 Set-Content -Path (Join-Path $PSScriptRoot "supabase_build_config.py") -Value $buildConfig -Encoding UTF8
 
 try {
-    # Limpia el staging anterior para evitar copias recursivas y artefactos locales.
+    # Limpia el staging anterior para evitar copias recursivas, locks de Gradle y artefactos locales.
+    Stop-StaleAndroidBuildProcesses
     Remove-Item (Join-Path $PSScriptRoot "build\python-app") -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item (Join-Path $PSScriptRoot "build\flutter\build") -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item (Join-Path $PSScriptRoot "build\python-app\.env") -Force -ErrorAction SilentlyContinue
     $env:PYTHONUTF8 = "1"
     $env:PYTHONIOENCODING = "utf-8"
     Write-Host "Building ARM64 APK with Supabase configuration..."
-    if (Test-Path $localFlet) {
-        & $localFlet build apk --arch arm64-v8a --yes --no-rich-output
-    } else {
-        flet build apk --arch arm64-v8a --yes --no-rich-output
-    }
+    & $localFlet build apk --arch arm64-v8a --yes --no-rich-output
     if ($LASTEXITCODE -ne 0) {
         throw "Flet no pudo construir la APK. Codigo: $LASTEXITCODE"
     }
@@ -128,7 +163,7 @@ if (-not $apk) {
 }
 
 Write-Host "Found APK: $($apk.FullName)"
-Publish-ApkToGitHub $apk.FullName $appVersion
+Write-Host "APK lista para instalar en Android y para actualizacion en Supabase."
 
 $remoteApkPath = "updates/SmartStore-$appVersion.apk"
 $remoteApkUrl = Upload-SupabaseFile $apk.FullName $remoteApkPath "application/vnd.android.package-archive"
