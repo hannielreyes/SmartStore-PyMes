@@ -1,5 +1,6 @@
 import flet as ft
 import asyncio
+import time
 from utils import configurar_retroceso
 
 def pre_splash_view(page: ft.Page, on_complete):
@@ -12,16 +13,22 @@ def pre_splash_view(page: ft.Page, on_complete):
     page.bgcolor = "#EF7620"
     page.update()
 
-    progress = ft.ProgressBar(width=200, color="white", bgcolor="#EFA52088")
+    progress = ft.ProgressRing(
+        width=40,       # Ancho del circulito en píxeles.
+        height=40,      # Alto del circulito en píxeles.
+        stroke_width=5, # Grosor de la línea del circulito en píxeles.
+        color="#040D4A",
+    )
 
-    # CONTROLES: identidad visual de inicio y barra que indica el progreso de carga.
+    # CONTROLES: identidad visual de inicio e indicador de precarga de datos.
     content = ft.Column(
         [
             ft.Text("😉", size=80),
             ft.Text("🛒", size=80),
             ft.Text("¡Smart-Store!", size=32, weight=ft.FontWeight.BOLD, color="#FFFFFF"),
-            ft.Container(height=20),
+            ft.Container(height=6), #espaciado entre el título y el indicador de progreso.
             progress,
+            ft.Text("Cargando datos...", size=15, color="#FFFFFF"),
         ],
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         spacing=20,
@@ -34,16 +41,20 @@ def pre_splash_view(page: ft.Page, on_complete):
     page.update()
 
     async def animar_progreso():
-        """Anima el progreso de forma async y segura"""
-        for i in range(10):
-            await asyncio.sleep(0.6)
-            progress.value = (i + 1) / 10
-            page.update()
-        
-        await asyncio.sleep(0.6)
+        """Mantiene el indicador visible al menos 6 segundos y luego avanza."""
+        inicio = time.monotonic()
+        try:
+            await asyncio.wait_for(page._smartstore_start_ready.wait(), timeout=30)
+        except asyncio.TimeoutError:
+            # La interfaz puede continuar aunque el servidor tarde demasiado.
+            pass
+
+        transcurrido = time.monotonic() - inicio
+        if transcurrido < 6:
+            await asyncio.sleep(6 - transcurrido)
+
         page.clean()
         page.update()
-        
         on_complete()
 
     page.run_task(animar_progreso)

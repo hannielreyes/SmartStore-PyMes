@@ -1,10 +1,13 @@
 """Configuracion segura para la conexion de prueba con Supabase."""
 
 import importlib.util
+import base64
 import json
 import os
 import mimetypes
 import uuid
+import hashlib
+import secrets
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
@@ -84,6 +87,8 @@ APP_VERSION = os.getenv(
     "SMARTSTORE_APP_VERSION",
     os.getenv("APP_VERSION", BUILT_APP_VERSION),
 ).strip() or "0.1.0"
+_SUPABASE_ACCESS_TOKEN = None
+_SUPABASE_REFRESH_TOKEN = None
 
 
 def _valor_es_placeholder(valor):
@@ -128,7 +133,21 @@ def supabase_esta_configurado():
         and bool(SUPABASE_KEY)
         and not _valor_es_placeholder(SUPABASE_URL)
         and not _valor_es_placeholder(SUPABASE_KEY)
+        and not _clave_es_service_role(SUPABASE_KEY)
     )
+
+
+def _clave_es_service_role(clave):
+    """Detecta una JWT service_role antes de usarla en el cliente APK."""
+    partes = str(clave or "").split(".")
+    if len(partes) != 3:
+        return False
+    try:
+        relleno = "=" * (-len(partes[1]) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(partes[1] + relleno))
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return False
+    return payload.get("role") == "service_role"
 
 
 def _headers():
@@ -137,12 +156,94 @@ def _headers():
             "Falta SMARTSTORE_SUPABASE_KEY. Configura la clave anon/public "
             "antes de probar Supabase."
         )
+    if _clave_es_service_role(SUPABASE_KEY):
+        raise RuntimeError(
+            "SMARTSTORE_SUPABASE_KEY es service_role. Usa la clave anon/public en la APK."
+        )
     return {
         "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Authorization": f"Bearer {_SUPABASE_ACCESS_TOKEN or SUPABASE_KEY}",
         "Content-Type": "application/json",
         "Prefer": "return=representation",
     }
+
+
+def establecer_token_auth(access_token):
+    """Usa el JWT del usuario para que Supabase aplique RLS por identidad."""
+    global _SUPABASE_ACCESS_TOKEN
+    _SUPABASE_ACCESS_TOKEN = str(access_token or "").strip() or None
+
+
+def establecer_sesion_auth(access_token, refresh_token=None):
+    global _SUPABASE_ACCESS_TOKEN, _SUPABASE_REFRESH_TOKEN
+    _SUPABASE_ACCESS_TOKEN = str(access_token or "").strip() or None
+    _SUPABASE_REFRESH_TOKEN = str(refresh_token or "").strip() or None
+
+
+def obtener_refresh_token_auth():
+    return _SUPABASE_REFRESH_TOKEN
+
+
+def refrescar_sesion_auth(refresh_token):
+    global _SUPABASE_ACCESS_TOKEN, _SUPABASE_REFRESH_TOKEN
+    _, respuesta = supabase_auth_request(
+        "token?grant_type=refresh_token",
+        datos={"refresh_token": refresh_token},
+    )
+    access_token = respuesta.get("access_token") if isinstance(respuesta, dict) else None
+    nuevo_refresh = respuesta.get("refresh_token") if isinstance(respuesta, dict) else None
+    if not access_token:
+        limpiar_token_auth()
+        return False
+    _SUPABASE_ACCESS_TOKEN = access_token
+    _SUPABASE_REFRESH_TOKEN = nuevo_refresh or refresh_token
+    return True
+
+
+def limpiar_token_auth():
+    global _SUPABASE_REFRESH_TOKEN
+    global _SUPABASE_ACCESS_TOKEN
+    _SUPABASE_ACCESS_TOKEN = None
+    _SUPABASE_REFRESH_TOKEN = None
+
+
+def supabase_auth_request(ruta, metodo="POST", datos=None):
+    """Llama a GoTrue usando siempre la clave pública de la aplicación."""
+    url = quote(f"{SUPABASE_URL}/auth/v1/{ruta}", safe=":/?&=,*().-_'%")
+    cuerpo = None if datos is None else json.dumps(datos).encode("utf-8")
+    request = Request(url, data=cuerpo, headers={
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {_SUPABASE_ACCESS_TOKEN or SUPABASE_KEY}",
+        "Content-Type": "application/json",
+    }, method=metodo.upper())
+    try:
+        with urlopen(request, timeout=8) as response:
+            contenido = response.read().decode("utf-8")
+            return response.status, json.loads(contenido) if contenido else None
+    except HTTPError as error:
+        detalle = error.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Supabase Auth respondió HTTP {error.code}: {detalle}") from error
+    except URLError as error:
+        raise RuntimeError(f"No se pudo contactar Supabase Auth: {error.reason}") from error
+
+
+def crear_url_oauth_google(redirect_to, code_challenge):
+    parametros = (
+        f"?provider=google&redirect_to={quote(str(redirect_to), safe='') }"
+        f"&code_challenge={quote(str(code_challenge), safe='')}&code_challenge_method=S256"
+    )
+    return f"{SUPABASE_URL}/auth/v1/authorize{parametros}"
+
+
+def intercambiar_codigo_oauth(codigo, verifier):
+    _, respuesta = supabase_auth_request(
+        "token?grant_type=pkce",
+        datos={"auth_code": codigo, "code_verifier": verifier},
+    )
+    if not isinstance(respuesta, dict) or not respuesta.get("access_token"):
+        raise RuntimeError("Supabase no devolvió una sesión OAuth válida.")
+    establecer_sesion_auth(respuesta["access_token"], respuesta.get("refresh_token"))
+    return respuesta
 
 
 def comprobar_conexion():

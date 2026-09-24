@@ -32,10 +32,10 @@ try:
                 client_secret=PAYPAL_CLIENT_SECRET,
             )
         client = PayPalHttpClient(environment)
-        print(f"✅ PayPal configurado para entorno: {PAYPAL_MODE}")
+        print(f"PayPal configurado para entorno: {PAYPAL_MODE}")
         PAYPAL_READY = True
     else:
-        print("⚠️ Credenciales PayPal incompletas")
+        print("Credenciales PayPal incompletas")
 except ImportError:
     print("⚠️ paypalcheckoutsdk no instalado. Instala: pip install paypalcheckoutsdk")
     PAYPAL_READY = False
@@ -63,6 +63,9 @@ def carrito_view(page: ft.Page, usuario, go_back):
     total_text = ft.Text("Total: C$0.00 / $0.00", weight=ft.FontWeight.BOLD)
     verificaciones_en_curso = set()
     verificaciones_lock = threading.Lock()
+    contexto = getattr(page, "_smartstore_context", None) or {}
+    reservas_precargadas = contexto.get("reservas_usuario")
+    usar_reservas_precargadas = reservas_precargadas is not None
 
     def _ejecutar_captura_paypal(e, reserva_id, tienda_id, total):
         # ACCIÓN: verifica y captura en PayPal el pago de una reserva.
@@ -388,8 +391,13 @@ def carrito_view(page: ft.Page, usuario, go_back):
         page.update()
 
     def cargar():
+        nonlocal usar_reservas_precargadas
         lista.controls.clear()
-        reservas = db.obtener_reservas_usuario(usuario["id"])
+        if usar_reservas_precargadas:
+            reservas = reservas_precargadas
+            usar_reservas_precargadas = False
+        else:
+            reservas = db.obtener_reservas_usuario(usuario["id"])
         total_c = 0.0
         total_d = 0.0
 

@@ -5,6 +5,7 @@ dependencies = [
     "flet==0.86.5",
     "flet_camera==0.86.5",
     "paypal-checkout-sdk",
+    "bcrypt",
 ]
 
 [tool.flet.android.permission]

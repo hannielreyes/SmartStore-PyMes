@@ -4,7 +4,7 @@ import flet as ft
 import database as db
 from utils import configurar_retroceso, mostrar_snackbar, notificaciones_activas
 
-def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_to_carrito, go_to_tienda, go_to_perfil, go_to_inventario, go_to_ajustes_adicionales, go_to_control_reservas):
+def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_to_carrito, go_to_tienda, go_to_perfil, go_to_inventario, go_to_ajustes_adicionales, go_to_control_reservas, contexto=None):
     # PANTALLA: menú principal con navegación, tiendas, inventario y avisos.
     configurar_retroceso(page, lambda: None)
     page.clean()
@@ -36,16 +36,25 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
         ),
     )
 
-    tiendas = db.obtener_tiendas_usuario(usuario['id'])
-    stock_total = db.obtener_stock_total_usuario(usuario['id'])
-    alertas_inventario = db.obtener_alertas_inventario(usuario['id'])
+    contexto = contexto or {}
+    tiendas = contexto.get("tiendas")
+    if tiendas is None:
+        tiendas = db.obtener_tiendas_usuario(usuario['id'])
+    stock_total = contexto.get("stock_total")
+    if stock_total is None:
+        stock_total = db.obtener_stock_total_usuario(usuario['id'])
+    alertas_inventario = contexto.get("alertas_inventario")
+    if alertas_inventario is None:
+        alertas_inventario = db.obtener_alertas_inventario(usuario['id'])
     avisos_activos = notificaciones_activas(page)
-    reservas_por_entregar = []
-    for tienda in tiendas:
-        try:
-            reservas_por_entregar.extend(db.obtener_reservas_por_tienda(tienda[0]))
-        except Exception:
-            continue
+    reservas_por_entregar = contexto.get("reservas")
+    if reservas_por_entregar is None:
+        reservas_por_entregar = []
+        for tienda in tiendas:
+            try:
+                reservas_por_entregar.extend(db.obtener_reservas_por_tienda(tienda[0]))
+            except Exception:
+                continue
 
     def abrir_inventario(e):
         # ACCIÓN: abre el inventario del usuario.
@@ -235,6 +244,32 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
         "Tu clientE ya está esperandO👀, preparA la reservA para entregarlA😅",
         "MomentO de entregAr🛍️, tienes una reservA pendiente en tu tiendA📣",
     ]
+    # AVISOS DE OPORTUNIDAD: búsquedas sin producto registrado, sin identificar al cliente.
+    busquedas_sin_resultado = list(getattr(page, "_smartstore_busquedas_sin_resultado", []))
+    try:
+        busquedas_sin_resultado.extend(
+            db.obtener_oportunidades_productos(usuario["id"])
+        )
+    except Exception:
+        pass
+    nombres_productos = {
+        str(producto[1]).strip().lower()
+        for producto in contexto.get("productos", [])
+        if len(producto) > 1 and producto[1]
+    }
+    busquedas_sin_resultado = [
+        busqueda for busqueda in busquedas_sin_resultado
+        if busqueda.strip().lower() not in nombres_productos
+    ]
+    page._smartstore_busquedas_sin_resultado = busquedas_sin_resultado
+    mensaje_busqueda = None
+    if avisos_activos and busquedas_sin_resultado:
+        producto_solicitado = busquedas_sin_resultado.pop(0)
+        mensaje_busqueda = (
+            "🔎 Un cliente buscó «{}» y todavía no aparece registrado. "
+            "Podría ser una buena oportunidad para venderlo 📦"
+        ).format(producto_solicitado)
+    page._smartstore_busquedas_sin_resultado = busquedas_sin_resultado
 
     alertas_card = None
     if avisos_activos:
@@ -277,6 +312,10 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
         else:
             # CADENA ÚNICA: cuando solo existe una clase de aviso real.
             secuencia_avisos = secuencia_inventario or secuencia_reservas
+
+        if mensaje_busqueda:
+            posicion_aviso = random.randint(0, len(secuencia_avisos))
+            secuencia_avisos.insert(posicion_aviso, ("busqueda", mensaje_busqueda))
 
         if secuencia_avisos:
             contenido_aviso = ft.Column(
@@ -323,15 +362,21 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
                 on_click=ocultar_aviso,
             )
 
+    # BOTONES DE NAVEGACIÓN PRINCIPAL: cada ancho se puede ajustar por separado.
+    ancho_btn_registrar = 250
+    ancho_btn_buscar = 250
+    ancho_btn_reservas = 250
+    ancho_btn_tienda = 250
+
     # Contenido central: textos, botones de navegación y tarjetas informativas.
     contenido_desplazable = ft.Column(
         [
             ft.Text(f"👤 Bienvenido, {usuario['nombre']}", size=18, weight=ft.FontWeight.W_600, color="#040D4A"),
             ft.Text("Gestiona tu negocio de forma inteligente", size=13, color="#555555"),
-            ft.ElevatedButton("📦 Registrar Producto", on_click=lambda e: salir_del_menu(go_to_registrar), color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
-            ft.ElevatedButton("🔍 Buscar Productos", on_click=lambda e: salir_del_menu(go_to_buscar), color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
-            ft.ElevatedButton("🛒 Reservas y Carrito", on_click=lambda e: salir_del_menu(go_to_carrito), color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
-            ft.ElevatedButton("🏪 Crear Tienda", on_click=lambda e: salir_del_menu(go_to_tienda), color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
+            ft.ElevatedButton("📦 Registrar Producto", on_click=lambda e: salir_del_menu(go_to_registrar), width=ancho_btn_registrar, color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
+            ft.ElevatedButton("🔍 Buscar Productos", on_click=lambda e: salir_del_menu(go_to_buscar), width=ancho_btn_buscar, color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
+            ft.ElevatedButton("🛒 Reservas y Carrito", on_click=lambda e: salir_del_menu(go_to_carrito), width=ancho_btn_reservas, color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
+            ft.ElevatedButton("🏪 Crear Tienda", on_click=lambda e: salir_del_menu(go_to_tienda), width=ancho_btn_tienda, color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
             ft.Text("📊 Mis Tiendas", size=18, weight=ft.FontWeight.BOLD, color="#040D4A"),
             lista_tiendas,
             ft.Container(
@@ -350,6 +395,7 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
                 on_click=abrir_inventario,
             ),
             *([alertas_card] if alertas_card else []),
+            # BOTONES DE SESIÓN Y BILLETERA: accesos secundarios del menú.
             ft.Row(
                 [
                     ft.TextButton("💳 Mi Billetera", on_click=lambda e: salir_del_menu(go_to_perfil), style=ft.ButtonStyle(color="#4D5F7A")),

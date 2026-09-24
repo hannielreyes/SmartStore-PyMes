@@ -10,6 +10,7 @@ from utils import (
 )
 import database as db
 import os
+from views.login import codigo_sesion_valido
 
 def perfil_usuario_view(page: ft.Page, usuario, go_back):
     # PANTALLA: perfil del usuario, datos personales, avisos y cambio de contraseña.
@@ -35,6 +36,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
         correo_input = ft.TextField(label="Correo electrónico", value=str(usuario.get("correo", "")), width=300)
         telefono_input = ft.TextField(label="Teléfono", value=str(telefono_actual or ""), width=300)
         fecha_input = ft.TextField(label="Fecha de nacimiento", value=str(fecha_actual or ""), width=300)
+        codigo_input = ft.TextField(label="Código de seguridad de esta sesión", password=True, width=300)
         mensaje = ft.Text("", size=12, color="red")
 
         # ACCIÓN: valida y guarda los datos personales en la base de datos.
@@ -43,6 +45,10 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
             correo = correo_input.value.strip()
             if not nombre or not correo or "@" not in correo:
                 mensaje.value = "⚠️ Escribe un nombre y un correo válido."
+                page.update()
+                return
+            if not codigo_sesion_valido(page, codigo_input.value.strip()):
+                mensaje.value = "🔐 El código de seguridad no es válido o ya expiró."
                 page.update()
                 return
             if db.verificar_correo_existe(correo) and correo != usuario.get("correo"):
@@ -57,6 +63,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
                 return
             usuario["nombre"] = nombre
             usuario["correo"] = correo
+            codigo_input.value = ""
             dialogo.open = False
             page.update()
             mostrar_snackbar(page, "✅ Datos personales actualizados.", color="green")
@@ -72,7 +79,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
             modal=True,
             title=ft.Text("✏️ Editar datos personales"),
             content=ft.Column(
-                [nombre_input, correo_input, telefono_input, fecha_input, mensaje],
+                [nombre_input, correo_input, telefono_input, fecha_input, codigo_input, mensaje],
                 tight=True,
                 scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True),
             ),
@@ -86,17 +93,20 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
         page.update()
 
     # BOTÓN: abre el diálogo para editar nombre, correo, teléfono y fecha.
+    # BOTONES DE DATOS PERSONALES: abre y guarda la edición del perfil.
     btn_editar_perfil = ft.ElevatedButton(
         "✏️ Editar datos personales",
         on_click=editar_datos_personales,
         bgcolor="#168AAD",
         color="white",
         height=36,
+        width=240,
     )
 
     # BLOQUE: controles y estado del flujo de cambio de contraseña.
-    nueva_pass = ft.TextField(label="Nueva contraseña", password=True, width=300)
-    confirm_pass = ft.TextField(label="Confirmar contraseña", password=True, width=300, visible=False)
+    nueva_pass = ft.TextField(label="Nueva contraseña", password=True, can_reveal_password=True, width=300)
+    confirm_pass = ft.TextField(label="Confirmar contraseña", password=True, can_reveal_password=True, width=300, visible=False)
+    codigo_pass = ft.TextField(label="Código de seguridad de esta sesión", password=True, can_reveal_password=False, width=300)
     mensaje_pass = ft.Text("", size=12, color="red", visible=False)
     en_confirmacion = False
     nueva_pass_contenedor = ft.Container(
@@ -179,9 +189,17 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
             mensaje_pass.visible = True
             page.update()
             return
+        if not codigo_sesion_valido(page, codigo_pass.value.strip()):
+            mensaje_pass.value = "🔐 El código de seguridad no es válido o ya expiró."
+            mensaje_pass.color = "#D84315"
+            mensaje_pass.visible = True
+            page.update()
+            return
 
         try:
             correo_usuario = usuario.get("correo", "")
+            if db._supabase_activo() and not db.establecer_contraseña_auth(nueva_pass.value):
+                raise RuntimeError("No se pudo actualizar la contraseña de Supabase Auth")
             if not db.actualizar_contraseña_por_correo(correo_usuario, nueva_pass.value):
                 raise RuntimeError("No se encontró el usuario")
         except Exception as exc:
@@ -199,6 +217,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
 
             nueva_pass.value = ""
             confirm_pass.value = ""
+            codigo_pass.value = ""
             nonlocal en_confirmacion
             en_confirmacion = False
             nueva_pass.disabled = False
@@ -232,17 +251,39 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
         dlg.open = True
         page.update()
 
-    btn_siguiente = ft.ElevatedButton("Siguiente", on_click=pasar_a_confirmacion)
+    # BOTONES DE CONTRASEÑA: avanzan, actualizan y regresan dentro del cambio seguro.
+    btn_siguiente = ft.ElevatedButton("Siguiente", on_click=pasar_a_confirmacion, width=150)
     btn_actualizar = ft.ElevatedButton(
         "Actualizar contraseña",
         on_click=lambda e: page.run_task(cambiar_pass, e),
         visible=False,
+        width=210,
     )
     btn_regresar = ft.IconButton(
         icon=ft.Icons.ARROW_BACK,
         tooltip="Volver a editar la nueva contraseña",
         on_click=regresar_a_nueva_pass,
         visible=False,
+    )
+
+    bloque_contraseña = ft.Column(
+        [
+            ft.Divider(height=20),
+            ft.Text("🔑 Cambiar Contraseña", size=16, weight=ft.FontWeight.BOLD),
+            nueva_pass_contenedor,
+            btn_siguiente,
+            confirm_pass_contenedor,
+            codigo_pass,
+            mensaje_pass,
+            ft.Row(
+                [btn_regresar, btn_actualizar],
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=8,
+            ),
+        ],
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        spacing=10,
+        visible=True,
     )
 
     nueva_pass.on_submit = pasar_a_confirmacion
@@ -352,19 +393,10 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
                     color="#666666",
                     text_align=ft.TextAlign.CENTER,
                 ),
-                ft.Divider(height=20),
-                ft.Text("🔑 Cambiar Contraseña", size=16, weight=ft.FontWeight.BOLD),
-                nueva_pass_contenedor,
-                btn_siguiente,
-                confirm_pass_contenedor,
-                mensaje_pass,
-                ft.Row(
-                    [btn_regresar, btn_actualizar],
-                    alignment=ft.MainAxisAlignment.CENTER,
-                    spacing=8,
-                ),
+                bloque_contraseña,
                 ft.Container(height=10),
-                ft.ElevatedButton("↩️ Volver a Ajustes", on_click=lambda e: go_back(usuario), height=36),
+                # BOTÓN DE NAVEGACIÓN: regresa a Ajustes Adicionales.
+                ft.ElevatedButton("↩️ Volver a Ajustes", on_click=lambda e: go_back(usuario), height=36, width=190),
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             alignment=ft.MainAxisAlignment.CENTER,

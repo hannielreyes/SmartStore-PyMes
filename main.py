@@ -93,9 +93,9 @@ def main(page: ft.Page):
         if usuario_precargado and contexto_precargado:
             go_to_menu(usuario_precargado)
             return
-        correo, password = cargar_sesion(page)
-        if correo and password:
-            usuario = db.obtener_usuario(correo, password)
+        correo, token = cargar_sesion(page)
+        if correo and token:
+            usuario = db.obtener_usuario_por_token(token)
             if usuario:
                 usuario_dict = {"id": usuario[0], "nombre": usuario[1], "correo": usuario[2]}
                 go_to_menu(usuario_dict)
@@ -230,10 +230,10 @@ def main(page: ft.Page):
         from views.login import cargar_sesion
 
         try:
-            correo, password = cargar_sesion(page)
-            if not correo or not password:
+            correo, token = cargar_sesion(page)
+            if not correo or not token:
                 return
-            usuario = await asyncio.to_thread(db.obtener_usuario, correo, password)
+            usuario = await asyncio.to_thread(db.obtener_usuario_por_token, token)
             if not usuario:
                 return
             usuario_dict = {"id": usuario[0], "nombre": usuario[1], "correo": usuario[2]}

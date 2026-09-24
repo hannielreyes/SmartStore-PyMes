@@ -1,4 +1,5 @@
 import flet as ft
+import asyncio
 from utils import configurar_retroceso
 import hashlib
 contrasena = hashlib.md5(b"mi_clave_secreta") 
@@ -7,7 +8,7 @@ def splash_view(page: ft.Page, on_complete):
     configurar_retroceso(page, lambda: None)
     page.clean()
     page.update()
-    page.bgcolor = "white"
+    page.bgcolor = "#F5F7FA"
     page.padding = 0
     page.spacing = 0
     page.margin = 0
@@ -38,11 +39,23 @@ def splash_view(page: ft.Page, on_complete):
     )
 )
 
-    def avanzar(e):
+    finalizado = {"valor": False}
+
+    def avanzar(e=None):
         # ACCIÓN: limpia la bienvenida y continúa con el flujo de inicio.
+        if finalizado["valor"]:
+            return
+        finalizado["valor"] = True
         page.clean()
         page.update()
         on_complete()
+
+    async def auto_avanzar():
+        await asyncio.sleep(6)
+        if not finalizado["valor"]:
+            avanzar()
+
+    page.run_task(auto_avanzar)
 
     btn_avanzar.on_click = avanzar
 

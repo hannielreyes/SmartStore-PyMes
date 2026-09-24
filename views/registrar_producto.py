@@ -122,7 +122,10 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
 
     categoria_input.on_change = actualizar_atributos
 
-    tienda = db.obtener_tienda_usuario(usuario["id"])
+    contexto = getattr(page, "_smartstore_context", None) or {}
+    tienda = contexto.get("tienda_actual")
+    if tienda is None:
+        tienda = db.obtener_tienda_usuario(usuario["id"])
     tasa = tienda[3] if tienda else 36.5
     tasa_calculadora = tasa
     tasa_texto = ft.Text(f"Tasa de cambio actual: C${tasa} = $1", size=12, color="#555555")
@@ -463,10 +466,13 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
             on_cancel=lambda: page.update(),
         )
 
-    # Botones de imagen: seleccionar, reemplazar y quitar cada imagen del producto.
+    # BOTONES DE IMAGEN: seleccionar, reemplazar y quitar cada imagen del producto.
+    ancho_btn_imagen_1 = 280
+    ancho_btn_imagen_2 = 280
     btn_imagen = ft.ElevatedButton(
         "📷 Seleccionar imagen",
         on_click=abrir_selector,
+        width=ancho_btn_imagen_1,
     )
     btn_reemplazar_imagen = ft.TextButton(
         "Reemplazar imagen",
@@ -482,6 +488,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
     btn_imagen_2 = ft.ElevatedButton(
         "📷 Seleccionar segunda imagen",
         on_click=lambda e: abrir_selector(e, procesar_imagen_2),
+        width=ancho_btn_imagen_2,
     )
     btn_reemplazar_imagen_2 = ft.TextButton(
         "Reemplazar segunda imagen",
@@ -660,10 +667,14 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
     precio_input_cal.on_submit = accion_principal
     porcentaje_input_cal.on_submit = accion_principal
 
-    btn_modo = ft.ElevatedButton(content=ft.Text("Registrar Producto"), on_click=accion_principal, bgcolor="#EFA520")
+    # BOTONES DE REGISTRO: alternan formulario/calculadora, limpian y regresan al menú.
+    ancho_btn_modo = 190
+    ancho_btn_limpiar = 150
+    ancho_btn_volver = 180
+    btn_modo = ft.ElevatedButton(content=ft.Text("Registrar Producto"), on_click=accion_principal, bgcolor="#EFA520", width=ancho_btn_modo)
     btn_alternativo = ft.TextButton(content=ft.Text("Cambiar a Modo Calculadora"), on_click=cambiar_modo)
-    btn_limpiar_cal = ft.TextButton("Borrar datos", on_click=limpiar_calculadora, visible=False)
-    btn_volver_menu = ft.ElevatedButton("↩️ Volver al Menu", on_click=lambda e: go_back(usuario))
+    btn_limpiar_cal = ft.TextButton("Borrar datos", on_click=limpiar_calculadora, visible=False, width=ancho_btn_limpiar)
+    btn_volver_menu = ft.ElevatedButton("↩️ Volver al Menu", on_click=lambda e: go_back(usuario), width=ancho_btn_volver)
     form = ft.Container(
         content=ft.Column(
             [

@@ -101,6 +101,40 @@ El esquema preparado para Supabase esta en `supabase_schema.sql`. Ejecutalo desd
 La aplicacion aun conserva SQLite durante esta etapa para no mezclar datos ni perder informacion. Cuando el esquema este creado, se migrara la capa `database.py` a una API central y se exportaran los datos existentes.
 - Incluir logs de `adb` o un script de CI que valide la inclusión de `flet_camera` en el build.
 
+## Estado de seguridad y pendientes
+
+La aplicacion ya incluye bcrypt para las contrasenas, recuperacion mediante
+codigo de un solo uso y tokens locales revocables. La migracion a Supabase Auth
+esta en curso: el codigo nuevo puede crear identidades Auth, guardar
+`auth_user_id` y restaurar el JWT mediante el `refresh_token` local.
+
+### Archivo de pruebas
+
+`supabase_test_policies.sql` es exclusivamente temporal. Se usa para probar la
+app mientras el login propio y las pantallas terminan de migrarse. Su politica
+`using (true)` permite acceso amplio a `anon`, por lo que una persona que
+modifique la APK podria intentar leer o cambiar datos de otras cuentas. No debe
+ejecutarse en produccion ni en un proyecto con datos reales.
+
+### Pendientes antes de produccion
+
+1. Ejecutar `supabase_security_migration.sql` una sola vez.
+2. Crear una cuenta nueva desde la app y verificar que `usuarios.auth_user_id`
+	tenga un UUID.
+3. Probar login, cierre, reapertura automatica y revocacion del token.
+4. Migrar la recuperacion de contrasena para que cambie la contrasena de
+	Supabase Auth, no solo la columna antigua de `usuarios`.
+5. Decidir el tratamiento de cuentas antiguas sin `auth_user_id`; no borrarlas
+	automaticamente.
+6. Ejecutar una copia de seguridad y probar con cuentas compradora y vendedora.
+7. Ejecutar `supabase_production_rls.sql` solo despues de completar los pasos
+	anteriores.
+8. Confirmar que la APK usa `anon/public` y nunca `service_role`.
+
+Si una prueba falla despues de activar RLS, no se debe volver a poner
+`using (true)` en produccion. Hay que revisar el JWT, `auth_user_id` y la
+politica concreta que rechazo la operacion.
+
 ---
 
 Si quieres, procedo a:

@@ -1,3 +1,22 @@
 flet==0.86.5
 flet_camera==0.86.5
 paypal-checkout-sdk
+bcrypt
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Get-ChildItem *.sql | ForEach-Object { "==================== ARCHIVO: $($_.Name) ===================="; Get-Content $_.FullName; "`n" } | Set-Content SQL_todos.txt
+
+#Get-ChildItem *.py | ForEach-Object { "==================== ARCHIVO: $($_.Name) ===================="; Get-Content $_.FullName; "`n" } | Set-Content raiz_todos.txt
+#Get-ChildItem views\*.py | ForEach-Object { "==================== ARCHIVO: $($_.Name) ===================="; Get-Content $_.FullName; "`n" } | Set-Content database_todos.txt
+#

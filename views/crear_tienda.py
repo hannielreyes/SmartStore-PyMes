@@ -14,7 +14,12 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
     configurar_retroceso(page, lambda: go_back(usuario))
     page.bgcolor = "white"
 
-    if db.obtener_tiendas_usuario(usuario["id"]):
+    contexto = getattr(page, "_smartstore_context", None) or {}
+    tiendas_usuario = contexto.get("tiendas")
+    if tiendas_usuario is None:
+        tiendas_usuario = db.obtener_tiendas_usuario(usuario["id"])
+
+    if tiendas_usuario:
         def volver_desde_aviso(e):
             aviso.open = False
             page.update()
@@ -473,10 +478,13 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
         )
 
     # BOTONES DE IMÁGENES: seleccionan, reemplazan o quitan logo y fotos de productos.
-    btn_imagen = ft.ElevatedButton("📷 Seleccionar logo de tienda", on_click=abrir_selector_tienda)
+    ancho_btn_logo = 280
+    ancho_btn_imagen_producto = 280
+    ancho_btn_imagen_producto_2 = 280
+    btn_imagen = ft.ElevatedButton("📷 Seleccionar logo de tienda", on_click=abrir_selector_tienda, width=ancho_btn_logo)
     producto_imagen_preview_2 = ft.Container(bgcolor="#F3F3F3", border_radius=12, visible=False)
-    btn_imagen_producto = ft.ElevatedButton("📷 Seleccionar imagen de producto", on_click=abrir_selector_producto)
-    btn_imagen_producto_2 = ft.ElevatedButton("📷 Seleccionar segunda imagen", on_click=lambda e: abrir_selector_producto(e, procesar_imagen_producto_2))
+    btn_imagen_producto = ft.ElevatedButton("📷 Seleccionar imagen de producto", on_click=abrir_selector_producto, width=ancho_btn_imagen_producto)
+    btn_imagen_producto_2 = ft.ElevatedButton("📷 Seleccionar segunda imagen", on_click=lambda e: abrir_selector_producto(e, procesar_imagen_producto_2), width=ancho_btn_imagen_producto_2)
     btn_reemplazar_logo = ft.TextButton("Reemplazar logo", on_click=abrir_selector_tienda, visible=False)
     btn_reemplazar_imagen = ft.TextButton("Reemplazar imagen", on_click=abrir_selector_producto, visible=False)
     btn_quitar_logo = ft.TextButton("Quitar logo", on_click=quitar_logo, visible=False)

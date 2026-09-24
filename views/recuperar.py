@@ -26,7 +26,9 @@ def recuperar_view(page: ft.Page, go_to_menu):
 
     correo_field = ft.TextField(label="Correo electrónico", width=300)
     telefono_verificacion_field = ft.TextField(label="Número de teléfono / WhatsApp", width=300, visible=False)
-    codigo_field = ft.TextField(label="Código recibido por WhatsApp", width=300, visible=False)
+    codigo_field = ft.TextField(label="Código de seguridad de tu sesión", width=300, visible=False)
+    nueva_contraseña_field = ft.TextField(label="Nueva contraseña", password=True, can_reveal_password=True, width=300, visible=False)
+    confirmar_contraseña_field = ft.TextField(label="Confirmar nueva contraseña", password=True, can_reveal_password=True, width=300, visible=False)
     resultado_texto = ft.Text("", size=14)
     spinner_reconexion = ft.Container(
         visible=False,
@@ -37,13 +39,15 @@ def recuperar_view(page: ft.Page, go_to_menu):
         opacity=0,
     )
     # BOTÓN: busca los datos asociados al correo introducido.
-    btn_buscar = ft.ElevatedButton("Buscar mi contraseña", on_click=lambda e: buscar_contraseña())
+    # BOTONES DE RECUPERACIÓN: buscan la cuenta y regresan al inicio de sesión.
+    ancho_btn_buscar = 220
+    btn_buscar = ft.ElevatedButton("Buscar mi contraseña", on_click=lambda e: buscar_contraseña(), width=ancho_btn_buscar)
     # btn_verificar_whatsapp = ft.ElevatedButton("Verificar por número", visible=True, on_click=lambda e: abrir_verificacion_whatsapp())
     # btn_enviar_codigo = ft.ElevatedButton("Enviar código", visible=False, on_click=lambda e: verificar_whatsapp())
     # btn_abrir_whatsapp = ft.ElevatedButton("🔗 Abrir WhatsApp", visible=False, on_click=lambda e: abrir_whatsapp_manual())
-    # btn_validar_codigo = ft.ElevatedButton("Validar código", visible=False, on_click=lambda e: validar_codigo())
+    btn_validar_codigo = ft.ElevatedButton("Validar código", visible=False)
     # BOTÓN: devuelve al login los datos recuperados.
-    btn_inyectar_datos = ft.ElevatedButton("Usar estos datos para iniciar sesión 😊", visible=False)
+    btn_inyectar_datos = ft.ElevatedButton("Guardar nueva contraseña", visible=False)
 
     # def volver_a_busqueda_por_correo(e=None):
     #     correo_field.visible = True
@@ -70,7 +74,7 @@ def recuperar_view(page: ft.Page, go_to_menu):
     #     spacing=12,
     #     visible=False,
     # )
-    datos_recuperados = {"correo": "", "contraseña": ""}
+    datos_recuperados = {"correo": ""}
     # codigo_generado = ""
     # numero_registrado = ""
     # url_whatsapp = ""
@@ -99,7 +103,6 @@ def recuperar_view(page: ft.Page, go_to_menu):
         if not correo:
             mostrar_resultado("Escribe tu correo para verificar tu cuenta. 😊", "red")
             datos_recuperados["correo"] = ""
-            datos_recuperados["contraseña"] = ""
             btn_inyectar_datos.visible = False
             # panel_verificacion.visible = False
             # codigo_field.visible = False
@@ -110,14 +113,13 @@ def recuperar_view(page: ft.Page, go_to_menu):
         try:
             db.verificar_conexion_remota()
             mostrar_spinner_temporal()
-        except RuntimeError:
-            mostrar_spinner_reconexion()
-            mostrar_resultado(
-                "⚠️ Parece que no tienes conexión a internet 😅 Verifica tu red e intenta nuevamente cuando estés conectado 😊",
-                "red",
-            )
+        except RuntimeError as exc:
+            ocultar_spinner_reconexion()
+            if "desactivado" in str(exc).lower():
+                mostrar_resultado("⚙️ Supabase está desactivado. Cierra y vuelve a abrir la app con SMARTSTORE_USAR_SUPABASE=1.", "red")
+            else:
+                mostrar_resultado("⚠️ No se pudo conectar con Supabase. Revisa la conexión y las políticas RLS.", "red")
             datos_recuperados["correo"] = ""
-            datos_recuperados["contraseña"] = ""
             btn_inyectar_datos.visible = False
             page.update()
             return
@@ -125,13 +127,9 @@ def recuperar_view(page: ft.Page, go_to_menu):
         try:
             usuario = db.obtener_usuario_por_correo(correo)
         except RuntimeError:
-            mostrar_spinner_reconexion()
-            mostrar_resultado(
-                "⚠️ Parece que no tienes conexión a internet 😅 Verifica tu red e intenta nuevamente cuando estés conectado 😊",
-                "red",
-            )
+            ocultar_spinner_reconexion()
+            mostrar_resultado("⚠️ No se pudo consultar la cuenta. Revisa la conexión y las políticas RLS.", "red")
             datos_recuperados["correo"] = ""
-            datos_recuperados["contraseña"] = ""
             btn_inyectar_datos.visible = False
             page.update()
             return
@@ -139,7 +137,6 @@ def recuperar_view(page: ft.Page, go_to_menu):
         if not usuario:
             mostrar_resultado("❌ Ese correo no está registrado. Revisa los datos o crea una cuenta nueva 😊", "red")
             datos_recuperados["correo"] = ""
-            datos_recuperados["contraseña"] = ""
             btn_inyectar_datos.visible = False
             # panel_verificacion.visible = False
             # codigo_field.visible = False
@@ -147,7 +144,6 @@ def recuperar_view(page: ft.Page, go_to_menu):
             page.update()
             return
 
-        contraseña = usuario[5]
         correo_guardado = usuario[2]
         # telefono_registrado = usuario[3]
         # if not telefono_registrado:
@@ -166,10 +162,33 @@ def recuperar_view(page: ft.Page, go_to_menu):
         # telefono_verificacion_field.visible = False
         # codigo_field.visible = False
         # btn_validar_codigo.visible = False
-        btn_inyectar_datos.visible = True
+        btn_inyectar_datos.visible = False
         datos_recuperados["correo"] = correo_guardado
-        datos_recuperados["contraseña"] = contraseña
-        mostrar_resultado(f"✅ Cuenta encontrada. Tu contraseña es: {contraseña}. 😊", "green")
+        codigo_field.visible = True
+        btn_validar_codigo.visible = True
+        mostrar_resultado("✅ Cuenta encontrada. Introduce el código que recibiste al iniciar sesión 😊", "green")
+        page.update()
+
+    def validar_codigo(e=None):
+        codigo = (codigo_field.value or "").strip()
+        correo = datos_recuperados["correo"]
+        if not correo:
+            mostrar_resultado("Primero verifica tu correo electrónico. 😊", "red")
+            return
+        if not db.validar_codigo_sesion(correo, codigo):
+            mostrar_resultado("❌ El código no coincide. Revisa e inténtalo nuevamente 😊", "red")
+            return
+        try:
+            db.invalidar_codigo_sesion_bd(correo)
+        except RuntimeError:
+            mostrar_resultado("⚠️ No se pudo invalidar el código. Intenta nuevamente. 😊", "red")
+            return
+        codigo_field.visible = False
+        btn_validar_codigo.visible = False
+        nueva_contraseña_field.visible = True
+        confirmar_contraseña_field.visible = True
+        btn_inyectar_datos.visible = True
+        mostrar_resultado("✅ Código validado. Escribe tu nueva contraseña. 😊", "green")
         page.update()
 
     # def abrir_verificacion_whatsapp(e=None):
@@ -252,16 +271,28 @@ def recuperar_view(page: ft.Page, go_to_menu):
     #     page.update()
 
     def inyectar_datos_en_login(e):
+        correo = datos_recuperados["correo"]
+        nueva_contraseña = nueva_contraseña_field.value or ""
+        confirmar_contraseña = confirmar_contraseña_field.value or ""
+        if not nueva_contraseña:
+            mostrar_resultado("Escribe una nueva contraseña. 😊", "red")
+            return
+        if nueva_contraseña != confirmar_contraseña:
+            mostrar_resultado("❌ Las contraseñas no coinciden. 😊", "red")
+            return
+        try:
+            if not db.actualizar_contraseña_por_correo(correo, nueva_contraseña):
+                mostrar_resultado("❌ No se pudo actualizar la contraseña.", "red")
+                return
+            db.invalidar_codigo_sesion_bd(correo)
+        except RuntimeError:
+            mostrar_resultado("⚠️ No hay conexión con la base de datos. Intenta nuevamente. 😊", "red")
+            return
         from views.login import login_view
-        login_view(
-            page,
-            None,
-            go_to_menu,
-            datos_recuperados["correo"],
-            datos_recuperados["contraseña"],
-        )
+        login_view(page, None, go_to_menu, correo, nueva_contraseña)
 
     btn_inyectar_datos.on_click = inyectar_datos_en_login
+    btn_validar_codigo.on_click = validar_codigo
     correo_field.on_submit = buscar_contraseña
     # telefono_verificacion_field.on_submit = verificar_whatsapp
     # codigo_field.on_submit = validar_codigo
@@ -278,7 +309,10 @@ def recuperar_view(page: ft.Page, go_to_menu):
                 ft.Text("Escribe tu correo para buscar tu cuenta y luego puedes continuar 😊", size=14, color="#555555"),
                 correo_field,
                 btn_buscar,
-                # btn_verificar_whatsapp,
+                codigo_field,
+                btn_validar_codigo,
+                nueva_contraseña_field,
+                confirmar_contraseña_field,
                 btn_inyectar_datos,
                 # panel_verificacion,
                 resultado_texto,

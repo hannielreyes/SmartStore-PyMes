@@ -2,6 +2,7 @@ import flet as ft
 
 import database as db
 from utils import configurar_retroceso, mostrar_snackbar
+from views.login import codigo_sesion_valido
 
 
 def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas):
@@ -15,7 +16,10 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
         expand=True,
         image=ft.DecorationImage(src="fondo.png", fit="cover"),
     )
-    tiendas = db.obtener_tiendas_usuario(usuario["id"])
+    contexto = getattr(page, "_smartstore_context", None) or {}
+    tiendas = contexto.get("tiendas")
+    if tiendas is None:
+        tiendas = db.obtener_tiendas_usuario(usuario["id"])
 
     def ir_a_billetera(e):
         # ACCIÓN: abre la billetera o explica por qué aún no está disponible.
@@ -75,6 +79,9 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
         )
     )
 
+    # BOTONES DE PAYPAL: vincula o cambia la cuenta de pagos del usuario.
+    ancho_btn_paypal = 220
+
     def vincular_paypal(e):
         # DIÁLOGO: permite vincular o cambiar el correo de PayPal.
         paypal_actual = db.obtener_paypal_email(usuario["id"])
@@ -84,6 +91,7 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
             hint_text="ejemplo@correo.com",
             width=300,
         )
+        codigo_input = ft.TextField(label="Código de seguridad de esta sesión", password=True, width=300)
         mensaje = ft.Text("", size=12)
 
         def guardar_email(e):
@@ -94,7 +102,13 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
                 mensaje.color = "red"
                 page.update()
                 return
+            if not codigo_sesion_valido(page, codigo_input.value.strip()):
+                mensaje.value = "🔐 El código de seguridad no es válido o ya expiró."
+                mensaje.color = "red"
+                page.update()
+                return
             db.guardar_paypal_email(usuario["id"], email)
+            codigo_input.value = ""
             dialogo.open = False
             page.update()
             mostrar_snackbar(page, "✅ Cuenta PayPal vinculada correctamente.", color="green")
@@ -111,6 +125,7 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
                 [
                     ft.Text("Ingresa el correo de PayPal donde recibirás tus pagos."),
                     email_input,
+                    codigo_input,
                     mensaje,
                 ],
                 tight=True,
@@ -123,6 +138,7 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
                     on_click=guardar_email,
                     bgcolor="#040D4A",
                     color="white",
+                    width=140,
                 ),
             ],
         )
@@ -150,6 +166,7 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
                     bgcolor="#040D4A",
                     color="white",
                     height=36,
+                    width=ancho_btn_paypal,
                 ),
                 ft.Text(
                     "📌 Vincula PayPal para recibir los pagos de tus ventas.",

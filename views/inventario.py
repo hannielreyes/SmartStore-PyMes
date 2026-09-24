@@ -28,7 +28,9 @@ def _show_full_image(page: ft.Page, src: str, src_2: str | None = None):
     ancho_imagen = min(ancho_disponible, 600)
     ancho_botones = min(ancho_disponible, 420)
 
-    # BOTONES: navegación entre imágenes y cierre de la vista ampliada.
+    # BOTONES DE GALERÍA: cambian de imagen o cierran la vista ampliada.
+    ancho_btn_siguiente_imagen = ancho_botones
+    ancho_btn_cerrar_imagen = ancho_botones
     botones = ft.Column(
         [
             ft.ElevatedButton(
@@ -38,7 +40,7 @@ def _show_full_image(page: ft.Page, src: str, src_2: str | None = None):
                 bgcolor="#040D4A",
                 color="white",
                 height=44,
-                width=ancho_botones,
+                width=ancho_btn_siguiente_imagen,
             ),
             ft.ElevatedButton(
                 "Cerrar",
@@ -46,7 +48,7 @@ def _show_full_image(page: ft.Page, src: str, src_2: str | None = None):
                 bgcolor="#EFA520",
                 color="#040D4A",
                 height=44,
-                width=ancho_botones,
+                width=ancho_btn_cerrar_imagen,
             ),
         ],
         spacing=12,
@@ -109,12 +111,20 @@ def inventario_view(page: ft.Page, usuario, go_back):
     )
     ancho_contenido_tarjeta = max(ancho_tarjeta - 84, 180)
 
+    # BOTONES DE INVENTARIO: editar, eliminar productos y volver al menú.
+    ancho_btn_editar_producto = 104
+    ancho_btn_eliminar_producto = 118
+    ancho_btn_volver_menu = 260
+
     # Lista desplazable de productos registrados en la tienda del usuario.
     lista = ft.Column(
         spacing=10,
         scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True),
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
     )
+    contexto = getattr(page, "_smartstore_context", None) or {}
+    productos_precargados = contexto.get("productos")
+    usar_productos_precargados = productos_precargados is not None
 
     def mostrar_edicion(id_producto, producto):
         # DIÁLOGO: formulario para editar los datos y existencias del producto.
@@ -194,9 +204,14 @@ def inventario_view(page: ft.Page, usuario, go_back):
         page.update()
 
     def cargar():
+        nonlocal usar_productos_precargados
         # CARGA: reconstruye la lista de productos del inventario.
         lista.controls.clear()
-        productos = db.obtener_productos_usuario(usuario["id"])
+        if usar_productos_precargados:
+            productos = productos_precargados
+            usar_productos_precargados = False
+        else:
+            productos = db.obtener_productos_usuario(usuario["id"])
 
         if not productos:
             lista.controls.append(
@@ -289,7 +304,7 @@ def inventario_view(page: ft.Page, usuario, go_back):
                 bgcolor=ft.Colors.RED_400,
                 color="white",
                 height=40,
-                width=118,
+                width=ancho_btn_eliminar_producto,
             )
             btn_editar = ft.ElevatedButton(
                 "✏️ Editar",
@@ -297,7 +312,7 @@ def inventario_view(page: ft.Page, usuario, go_back):
                 bgcolor="#168AAD",
                 color="white",
                 height=40,
-                width=104,
+                width=ancho_btn_editar_producto,
             )
             acciones = ft.Column(
                 [btn_editar, btn_eliminar],
@@ -416,9 +431,13 @@ def inventario_view(page: ft.Page, usuario, go_back):
             )
         page.update()
 
-    stock_total = db.obtener_stock_total_usuario(usuario["id"])
-    total_productos = len(db.obtener_productos_usuario(usuario["id"]))
-    ancho_boton_volver = min(max((page.width or 360) - 40, 180), 260)
+    stock_total = contexto.get("stock_total")
+    total_productos = len(productos_precargados) if productos_precargados is not None else None
+    if stock_total is None:
+        stock_total = db.obtener_stock_total_usuario(usuario["id"])
+    if total_productos is None:
+        total_productos = len(db.obtener_productos_usuario(usuario["id"]))
+    ancho_boton_volver = min(max((page.width or 360) - 40, 180), ancho_btn_volver_menu)
 
     content = ft.Container(
         content=ft.Column(

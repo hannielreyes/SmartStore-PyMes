@@ -1,0 +1,518 @@
+==================== ARCHIVO: supabase_production_rls.sql ====================
+-- ================================================================
+-- RLS DE PRODUCCION. NO EJECUTAR TODAVIA SIN LEER TODO EL ARCHIVO.
+-- ================================================================
+--
+-- Este archivo es el objetivo final de seguridad. Requiere que la app use
+-- Supabase Auth y envie el JWT del usuario en cada consulta REST.
+--
+-- PRERREQUISITOS OBLIGATORIOS:
+--   1. Ejecutar supabase_security_migration.sql.
+--   2. Confirmar que los registros nuevos tienen auth_user_id.
+--   3. Probar login, registro, cierre y reapertura de la app.
+--   4. Migrar la recuperacion de contraseña a Supabase Auth.
+--   5. Revisar las politicas con una cuenta de prueba compradora y otra
+--      vendedora; comprobar que ninguna puede modificar datos ajenos.
+--   6. Hacer una copia de seguridad antes de ejecutar este archivo.
+--
+-- EFECTO PRINCIPAL:
+--   * Revoca el acceso directo de anon a las tablas.
+--   * Permite operaciones solo cuando auth.uid() coincide con
+--     usuarios.auth_user_id.
+--   * Si se ejecuta antes de terminar la migracion, el login o varias vistas
+--     dejaran de funcionar. Eso es esperado y no significa que haya internet
+--     caido: significa que falta completar la migracion.
+--
+-- NO EJECUTAR JUNTO CON supabase_test_policies.sql. El archivo de pruebas
+-- vuelve a conceder acceso amplio y anula el objetivo de este archivo.
+
+alter table public.usuarios enable row level security;
+alter table public.sesiones_dispositivo enable row level security;
+alter table public.tiendas enable row level security;
+alter table public.productos enable row level security;
+alter table public.reservas enable row level security;
+alter table public.resenas enable row level security;
+alter table public.solicitudes_productos enable row level security;
+
+drop policy if exists smartstore_test_all on public.usuarios;
+drop policy if exists smartstore_test_all on public.sesiones_dispositivo;
+drop policy if exists smartstore_test_all on public.tiendas;
+drop policy if exists smartstore_test_all on public.productos;
+drop policy if exists smartstore_test_all on public.reservas;
+drop policy if exists smartstore_test_all on public.resenas;
+drop policy if exists smartstore_test_all on public.solicitudes_productos;
+
+drop policy if exists usuarios_propios_select on public.usuarios;
+drop policy if exists usuarios_propios_insert on public.usuarios;
+drop policy if exists usuarios_propios_update on public.usuarios;
+create policy usuarios_propios_select on public.usuarios
+    for select to authenticated using (auth_user_id = auth.uid());
+create policy usuarios_propios_insert on public.usuarios
+    for insert to authenticated with check (auth_user_id = auth.uid());
+create policy usuarios_propios_update on public.usuarios
+    for update to authenticated
+    using (auth_user_id = auth.uid())
+    with check (auth_user_id = auth.uid());
+
+drop policy if exists sesiones_propias on public.sesiones_dispositivo;
+create policy sesiones_propias on public.sesiones_dispositivo
+    for all to authenticated
+    using (usuario_id in (select id from public.usuarios where auth_user_id = auth.uid()))
+    with check (usuario_id in (select id from public.usuarios where auth_user_id = auth.uid()));
+
+drop policy if exists tiendas_propias on public.tiendas;
+create policy tiendas_propias on public.tiendas
+    for all to authenticated
+    using (usuario_id in (select id from public.usuarios where auth_user_id = auth.uid()))
+    with check (usuario_id in (select id from public.usuarios where auth_user_id = auth.uid()));
+
+drop policy if exists productos_autenticados_select on public.productos;
+drop policy if exists productos_propios_write on public.productos;
+create policy productos_autenticados_select on public.productos
+    for select to authenticated using (true);
+create policy productos_propios_write on public.productos
+    for all to authenticated
+    using (tienda_id in (
+        select t.id from public.tiendas t
+        join public.usuarios u on u.id = t.usuario_id
+        where u.auth_user_id = auth.uid()
+    ))
+    with check (tienda_id in (
+        select t.id from public.tiendas t
+        join public.usuarios u on u.id = t.usuario_id
+        where u.auth_user_id = auth.uid()
+    ));
+
+drop policy if exists reservas_participantes on public.reservas;
+create policy reservas_participantes on public.reservas
+    for select to authenticated
+    using (
+        usuario_id in (select id from public.usuarios where auth_user_id = auth.uid())
+        or tienda_id in (
+            select t.id from public.tiendas t
+            join public.usuarios u on u.id = t.usuario_id
+            where u.auth_user_id = auth.uid()
+        )
+    );
+drop policy if exists reservas_comprador_insert on public.reservas;
+create policy reservas_comprador_insert on public.reservas
+    for insert to authenticated
+    with check (usuario_id in (select id from public.usuarios where auth_user_id = auth.uid()));
+drop policy if exists reservas_participantes_update on public.reservas;
+create policy reservas_participantes_update on public.reservas
+    for update to authenticated
+    using (
+        usuario_id in (select id from public.usuarios where auth_user_id = auth.uid())
+        or tienda_id in (
+            select t.id from public.tiendas t
+            join public.usuarios u on u.id = t.usuario_id
+            where u.auth_user_id = auth.uid()
+        )
+    );
+
+drop policy if exists resenas_autenticadas_select on public.resenas;
+drop policy if exists resenas_propias_insert on public.resenas;
+create policy resenas_autenticadas_select on public.resenas
+    for select to authenticated using (true);
+create policy resenas_propias_insert on public.resenas
+    for insert to authenticated
+    with check (usuario_id in (select id from public.usuarios where auth_user_id = auth.uid()));
+
+drop policy if exists solicitudes_autenticadas on public.solicitudes_productos;
+create policy solicitudes_autenticadas on public.solicitudes_productos
+    for all to authenticated
+    using (usuario_id in (select id from public.usuarios where auth_user_id = auth.uid()))
+    with check (usuario_id in (select id from public.usuarios where auth_user_id = auth.uid()));
+
+revoke all on public.usuarios from anon;
+revoke all on public.sesiones_dispositivo from anon;
+revoke all on public.tiendas from anon;
+revoke all on public.productos from anon;
+revoke all on public.reservas from anon;
+revoke all on public.resenas from anon;
+revoke all on public.solicitudes_productos from anon;
+grant select, insert, update on public.usuarios to authenticated;
+grant select, insert, update, delete on public.sesiones_dispositivo, public.tiendas, public.productos, public.reservas, public.resenas, public.solicitudes_productos to authenticated;
+revoke execute on function public.crear_reserva(bigint, bigint, integer, bigint) from anon;
+revoke execute on function public.cancelar_reservas_vencidas_rpc() from anon;
+revoke execute on function public.procesar_pago_reserva_rpc(bigint, numeric, bigint) from anon;
+grant execute on function public.crear_reserva(bigint, bigint, integer, bigint) to authenticated;
+grant execute on function public.cancelar_reservas_vencidas_rpc() to authenticated;
+grant execute on function public.procesar_pago_reserva_rpc(bigint, numeric, bigint) to authenticated;
+
+
+==================== ARCHIVO: supabase_product_category_migration.sql ====================
+-- Ejecutar una sola vez en Supabase SQL Editor.
+alter table public.productos
+    add column if not exists categoria text not null default 'General';
+
+alter table public.productos
+    add column if not exists imagen_2 text;
+
+alter table public.productos
+    add column if not exists descripcion text;
+
+alter table public.productos
+    add column if not exists estado_producto text default 'Nuevo';
+
+alter table public.productos
+    add column if not exists etiquetas text;
+
+alter table public.productos
+    add column if not exists estilo text;
+
+alter table public.productos
+    add column if not exists color_principal text;
+
+alter table public.productos
+    add column if not exists material text;
+
+alter table public.productos
+    add column if not exists garantia text;
+
+alter table public.productos
+    add column if not exists especificacion text;
+
+
+==================== ARCHIVO: supabase_product_search_requests.sql ====================
+-- Solicitudes de productos no encontrados.
+-- Ejecutar una vez en Supabase SQL Editor.
+create table if not exists public.solicitudes_productos (
+    id bigint generated by default as identity primary key,
+    usuario_id bigint not null references public.usuarios(id) on delete cascade,
+    termino text not null,
+    creado_en timestamptz not null default now(),
+    atendida boolean not null default false
+);
+
+create index if not exists idx_solicitudes_productos_estado
+    on public.solicitudes_productos (atendida, creado_en desc);
+create index if not exists idx_solicitudes_productos_usuario
+    on public.solicitudes_productos (usuario_id);
+
+
+==================== ARCHIVO: supabase_rpc.sql ====================
+-- Funciones transaccionales para reservas y pagos compartidos.
+-- Ejecutar despues de supabase_schema.sql en Supabase SQL Editor.
+
+create or replace function public.crear_reserva(
+    p_usuario_id bigint,
+    p_producto_id bigint,
+    p_cantidad integer,
+    p_tienda_id bigint
+) returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+    v_tienda_id bigint;
+    v_reserva_id bigint;
+begin
+    if p_cantidad <= 0 then
+        return jsonb_build_object('ok', false, 'message', 'La cantidad debe ser positiva');
+    end if;
+
+    select tienda_id into v_tienda_id
+    from productos where id = p_producto_id for update;
+    if v_tienda_id is null or v_tienda_id <> p_tienda_id then
+        return jsonb_build_object('ok', false, 'message', 'El producto no pertenece a esa tienda');
+    end if;
+
+    update productos set stock = stock - p_cantidad
+    where id = p_producto_id and stock >= p_cantidad;
+    if not found then
+        return jsonb_build_object('ok', false, 'message', 'No hay suficiente stock disponible');
+    end if;
+
+    insert into reservas (usuario_id, producto_id, cantidad, estado, tienda_id, fecha_expiracion)
+    values (p_usuario_id, p_producto_id, p_cantidad, 'Reservado', p_tienda_id, now() + interval '24 hours')
+    returning id into v_reserva_id;
+
+    return jsonb_build_object('ok', true, 'message', 'Reserva creada', 'id', v_reserva_id);
+end;
+$$;
+
+create or replace function public.cancelar_reservas_vencidas_rpc()
+returns integer language plpgsql security definer set search_path = public as $$
+declare v_total integer;
+begin
+    with vencidas as (
+        select id, producto_id, cantidad from reservas
+        where estado = 'Reservado' and fecha_expiracion is not null and fecha_expiracion <= now()
+        for update
+    ), devuelto as (
+        update productos p set stock = p.stock + v.cantidad
+        from vencidas v where p.id = v.producto_id returning v.id
+    )
+    update reservas r set estado = 'Vencido'
+    where r.id in (select id from vencidas) and r.estado = 'Reservado';
+    get diagnostics v_total = row_count;
+    return coalesce(v_total, 0);
+end;
+$$;
+
+create or replace function public.procesar_pago_reserva_rpc(
+    p_reserva_id bigint, p_monto numeric, p_tienda_id bigint
+) returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_tienda_id bigint; v_estado text;
+begin
+    select estado, tienda_id into v_estado, v_tienda_id from reservas where id = p_reserva_id for update;
+    if v_estado is null then return jsonb_build_object('ok', false, 'message', 'Reserva no encontrada'); end if;
+    if v_estado <> 'Reservado' then return jsonb_build_object('ok', false, 'message', 'La reserva ya fue procesada'); end if;
+    if v_tienda_id <> p_tienda_id then return jsonb_build_object('ok', false, 'message', 'La tienda no coincide'); end if;
+    update reservas set estado = 'Pagado' where id = p_reserva_id;
+    update tiendas set saldo = saldo + p_monto where id = p_tienda_id;
+    return jsonb_build_object('ok', true, 'message', 'Pago procesado');
+end;
+$$;
+
+
+==================== ARCHIVO: supabase_schema.sql ====================
+-- Esquema inicial compartido de SmartStore para Supabase/PostgreSQL.
+-- Ejecutar en Supabase SQL Editor antes de migrar la capa database.py.
+
+create table if not exists public.usuarios (
+    id bigint generated by default as identity primary key,
+    nombre text,
+    correo text not null unique,
+    telefono text,
+    fecha_nacimiento date,
+    contraseña text,
+    codigo_sesion text,
+    auth_user_id uuid unique,
+    paypal_email text,
+    imagen text
+);
+
+create table if not exists public.sesiones_dispositivo (
+    id bigint generated by default as identity primary key,
+    usuario_id bigint not null references public.usuarios(id) on delete cascade,
+    token_hash text not null unique,
+    creado_en timestamptz not null default now(),
+    revocado boolean not null default false
+);
+
+create table if not exists public.tiendas (
+    id bigint generated by default as identity primary key,
+    nombre text not null,
+    whatsapp text,
+    tasa_cambio numeric(12, 4),
+    usuario_id bigint not null references public.usuarios(id) on delete cascade,
+    direccion text,
+    saldo numeric(14, 2) not null default 0,
+    imagen text,
+    constraint una_tienda_por_usuario unique (usuario_id)
+);
+
+create table if not exists public.productos (
+    id bigint generated by default as identity primary key,
+    nombre text not null,
+    marca text,
+    talla text,
+    precio_cordobas numeric(14, 2),
+    precio_dolares numeric(14, 2),
+    stock integer not null default 0 check (stock >= 0),
+    tienda_id bigint not null references public.tiendas(id) on delete cascade,
+    imagen text,
+    categoria text not null default 'General',
+    imagen_2 text,
+    descripcion text,
+    estado_producto text default 'Nuevo',
+    etiquetas text,
+    estilo text,
+    color_principal text,
+    material text,
+    garantia text,
+    especificacion text
+);
+
+create table if not exists public.reservas (
+    id bigint generated by default as identity primary key,
+    usuario_id bigint references public.usuarios(id) on delete cascade,
+    producto_id bigint references public.productos(id) on delete cascade,
+    cantidad integer not null check (cantidad > 0),
+    fecha timestamptz not null default now(),
+    estado text not null default 'Reservado',
+    fecha_entrega timestamptz,
+    tienda_id bigint references public.tiendas(id) on delete cascade,
+    order_id text unique,
+    fecha_expiracion timestamptz
+);
+
+create table if not exists public.resenas (
+    id bigint generated by default as identity primary key,
+    producto_id bigint references public.productos(id) on delete cascade,
+    usuario_id bigint references public.usuarios(id) on delete set null,
+    calificacion integer not null check (calificacion between 1 and 5),
+    comentario text,
+    fecha timestamptz not null default now()
+);
+
+create index if not exists idx_tiendas_usuario_id on public.tiendas(usuario_id);
+create index if not exists idx_productos_tienda_id on public.productos(tienda_id);
+create index if not exists idx_productos_nombre on public.productos(nombre);
+create index if not exists idx_reservas_usuario_id on public.reservas(usuario_id);
+create index if not exists idx_reservas_tienda_id on public.reservas(tienda_id);
+create index if not exists idx_reservas_estado on public.reservas(estado);
+create index if not exists idx_reservas_expiracion on public.reservas(fecha_expiracion);
+create index if not exists idx_resenas_producto_id on public.resenas(producto_id);
+create index if not exists idx_sesiones_usuario_id on public.sesiones_dispositivo(usuario_id);
+create index if not exists idx_sesiones_token_activo on public.sesiones_dispositivo(token_hash, revocado);
+
+-- SmartStore aun usa su login propio durante esta migracion.
+-- No habilitar RLS publico para produccion: la API central debera autenticar
+-- al usuario y usar una clave secreta solo en el servidor.
+
+
+==================== ARCHIVO: supabase_security_migration.sql ====================
+-- ================================================================
+-- MIGRACION DE ESTRUCTURA. EJECUTAR UNA VEZ.
+-- ================================================================
+--
+-- Este archivo solo agrega columnas/tablas necesarias. No configura todavia
+-- las politicas finales de seguridad y no convierte cuentas antiguas en
+-- cuentas de Supabase Auth automaticamente.
+--
+-- Orden recomendado:
+--   1. Ejecutar este archivo.
+--   2. Probar registro/login con una cuenta NUEVA desde la app.
+--   3. Confirmar que auth_user_id contiene un UUID en public.usuarios.
+--   4. Completar la migracion de recuperacion de contraseña.
+--   5. Solo entonces ejecutar supabase_production_rls.sql.
+--
+-- Las cuentas creadas antes de Supabase Auth no tienen auth_user_id. No se
+-- deben borrar automaticamente: hay que decidir si se recrean, se vinculan
+-- mediante un flujo administrativo seguro o se obliga a restablecer acceso.
+ALTER TABLE public.usuarios ADD COLUMN IF NOT EXISTS codigo_sesion text;
+ALTER TABLE public.usuarios ADD COLUMN IF NOT EXISTS auth_user_id uuid UNIQUE;
+
+CREATE TABLE IF NOT EXISTS public.sesiones_dispositivo (
+	id bigint generated by default as identity primary key,
+	usuario_id bigint not null references public.usuarios(id) on delete cascade,
+	token_hash text not null unique,
+	creado_en timestamptz not null default now(),
+	revocado boolean not null default false
+);
+
+CREATE INDEX IF NOT EXISTS idx_sesiones_usuario_id
+	ON public.sesiones_dispositivo(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_sesiones_token_activo
+	ON public.sesiones_dispositivo(token_hash, revocado);
+
+-- Crea el perfil de SmartStore automáticamente al crear una identidad Auth.
+-- Así los datos del formulario llegan a Supabase aunque el correo requiera
+-- confirmación y todavía no exista un access_token en la aplicación.
+CREATE OR REPLACE FUNCTION public.crear_perfil_desde_auth()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+	INSERT INTO public.usuarios (
+		auth_user_id, nombre, correo, telefono, fecha_nacimiento, imagen, paypal_email
+	)
+	VALUES (
+		NEW.id,
+		COALESCE(NEW.raw_user_meta_data->>'nombre', NEW.email),
+		NEW.email,
+		NEW.raw_user_meta_data->>'telefono',
+		NULLIF(NEW.raw_user_meta_data->>'fecha_nacimiento', '')::date,
+		NEW.raw_user_meta_data->>'imagen',
+		'sb-zfl8251875274@business.example.com'
+	)
+	ON CONFLICT (auth_user_id) DO UPDATE SET
+		correo = EXCLUDED.correo,
+		nombre = COALESCE(EXCLUDED.nombre, public.usuarios.nombre),
+		telefono = COALESCE(EXCLUDED.telefono, public.usuarios.telefono),
+		fecha_nacimiento = COALESCE(EXCLUDED.fecha_nacimiento, public.usuarios.fecha_nacimiento),
+		imagen = COALESCE(EXCLUDED.imagen, public.usuarios.imagen);
+	RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS crear_perfil_auth_trigger ON auth.users;
+CREATE TRIGGER crear_perfil_auth_trigger
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.crear_perfil_desde_auth();
+
+
+==================== ARCHIVO: supabase_storage.sql ====================
+-- Ejecutar una sola vez en Supabase SQL Editor.
+-- Este bucket permite que las imagenes se vean desde PC y Android.
+insert into storage.buckets (id, name, public)
+values ('smartstore-media', 'smartstore-media', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "smartstore_media_public_read" on storage.objects;
+create policy "smartstore_media_public_read"
+on storage.objects for select
+using (bucket_id = 'smartstore-media');
+
+drop policy if exists "smartstore_media_anon_insert" on storage.objects;
+create policy "smartstore_media_anon_insert"
+on storage.objects for insert
+with check (bucket_id = 'smartstore-media');
+
+
+==================== ARCHIVO: supabase_test_policies.sql ====================
+-- ================================================================
+-- SOLO PRUEBAS CONTROLADAS. NO ES CONFIGURACION DE PRODUCCION.
+-- ================================================================
+--
+-- Este archivo existe para que la version de desarrollo pueda probar el
+-- flujo actual mientras termina la migracion a Supabase Auth.
+--
+-- QUE HACE:
+--   * Activa RLS, pero crea una politica que permite TODO a anon y
+--     authenticated usando `using (true)` y `with check (true)`.
+--   * Concede a la APK permisos de leer, insertar, modificar y borrar
+--     filas de todas las tablas principales.
+--   * Permite probar el login propio, registro, tokens y pantallas de la app.
+--
+-- POR QUE ES PELIGROSO:
+--   * Una APK puede ser inspeccionada o modificada por un usuario.
+--   * La clave anon es publica y no identifica de forma confiable al usuario.
+--   * Un cliente podria intentar leer o modificar datos de otro usuario si
+--     se deja esta politica activa.
+--
+-- CUANDO SE PUEDE USAR:
+--   * Solo en el proyecto de desarrollo/pruebas.
+--   * Solo mientras se prueba la migracion a Supabase Auth.
+--   * Nunca antes de confirmar que no contiene datos reales sensibles.
+--
+-- NO EJECUTAR ESTE ARCHIVO:
+--   * En el proyecto de produccion.
+--   * Antes de publicar la APK.
+--   * Como solucion permanente a errores de RLS.
+--
+-- PARA PRODUCCION se debe ejecutar supabase_production_rls.sql, pero solo
+-- despues de completar todos los pendientes indicados en ese archivo y en
+-- README.md. Ese cambio revoca el acceso directo de anon.
+
+do $$
+declare
+    tabla text;
+begin
+    foreach tabla in array array['usuarios', 'sesiones_dispositivo', 'tiendas', 'productos', 'reservas', 'resenas'] loop
+        execute format('alter table public.%I enable row level security', tabla);
+        execute format('drop policy if exists smartstore_test_all on public.%I', tabla);
+        execute format(
+            'create policy smartstore_test_all on public.%I for all to anon, authenticated using (true) with check (true)',
+            tabla
+        );
+    end loop;
+end
+$$;
+
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on public.usuarios to anon, authenticated;
+grant select, insert, update, delete on public.sesiones_dispositivo to anon, authenticated;
+grant select, insert, update, delete on public.tiendas to anon, authenticated;
+grant select, insert, update, delete on public.productos to anon, authenticated;
+grant select, insert, update, delete on public.reservas to anon, authenticated;
+grant select, insert, update, delete on public.resenas to anon, authenticated;
+grant usage, select on all sequences in schema public to anon, authenticated;
+
+grant execute on function public.crear_reserva(bigint, bigint, integer, bigint) to anon, authenticated;
+grant execute on function public.cancelar_reservas_vencidas_rpc() to anon, authenticated;
+grant execute on function public.procesar_pago_reserva_rpc(bigint, numeric, bigint) to anon, authenticated;
+
+

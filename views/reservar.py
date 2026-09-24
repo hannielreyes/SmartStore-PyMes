@@ -38,15 +38,15 @@ def reservar_view(page: ft.Page, usuario, producto_id, producto_nombre, producto
         direccion = tienda[5] or direccion
         logo_tienda = tienda[7] if len(tienda) > 7 else None
 
-    logo_control = ft.Container(width=120, height=120, bgcolor="#F3F3F3", border_radius=14)
+    logo_control = ft.Container(width=64, height=64, bgcolor="#F3F3F3", border_radius=12)
     if logo_tienda:
         logo_path = logo_tienda if os.path.isabs(logo_tienda) else os.path.join(os.getcwd(), logo_tienda)
         if imagen_disponible(logo_tienda):
             logo_control = ft.Container(
-                content=ft.Image(src=logo_tienda, width=120, height=120, fit="cover"),
-                width=120,
-                height=120,
-                border_radius=14,
+                content=ft.Image(src=logo_tienda, width=64, height=64, fit="cover"),
+                width=64,
+                height=64,
+                border_radius=12,
                 bgcolor="#F3F3F3",
             )
 

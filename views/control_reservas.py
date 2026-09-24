@@ -13,6 +13,10 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
     page.clean()
     page.bgcolor = "white"
 
+    # BOTONES DE RESERVAS Y BILLETERA: entregas, estados y navegación de tienda.
+    ancho_btn_entrega = 220
+    ancho_btn_volver_perfil = 220
+
     fondo = ft.Container(
         expand=True,
         image=ft.DecorationImage(src="fondo.png", fit="cover"),
@@ -82,7 +86,8 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                     ft.Divider(height=20),
                     ft.ElevatedButton(
                         "🔙 Volver a Mi Perfil",
-                        on_click=lambda e: go_to_perfil()
+                        on_click=lambda e: go_to_perfil(),
+                        width=ancho_btn_volver_perfil,
                     ),
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -172,6 +177,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                                 on_click=entregar,
                                 bgcolor="green",
                                 color="white",
+                                width=ancho_btn_entrega,
                             ),
                         ],
                     )

@@ -118,6 +118,21 @@ if ([string]::IsNullOrWhiteSpace($supabaseUrl) -or [string]::IsNullOrWhiteSpace(
     Write-Error "Faltan SMARTSTORE_SUPABASE_URL o SMARTSTORE_SUPABASE_KEY en .env."
     exit 1
 }
+$keyParts = $supabaseKey.Split('.')
+if ($keyParts.Count -eq 3) {
+    try {
+        $payloadPart = $keyParts[1].Replace('-', '+').Replace('_', '/')
+        while (($payloadPart.Length % 4) -ne 0) { $payloadPart += '=' }
+        $payloadJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payloadPart))
+        $payload = $payloadJson | ConvertFrom-Json
+        if ($payload.role -eq 'service_role') {
+            Write-Error "SMARTSTORE_SUPABASE_KEY es service_role. Usa la clave anon/public para la APK."
+            exit 1
+        }
+    } catch {
+        Write-Warning "No se pudo inspeccionar el formato JWT de SMARTSTORE_SUPABASE_KEY; confirma manualmente que sea anon/public."
+    }
+}
 if ([string]::IsNullOrWhiteSpace($updateUrl)) {
     $updateUrl = "$supabaseUrl/storage/v1/object/public/smartstore-media/updates/smartstore-update.json"
 }
