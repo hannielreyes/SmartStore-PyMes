@@ -41,6 +41,62 @@ def get_logger():
 def log_error(message, exc_info=True):
     get_logger().error(message, exc_info=exc_info)
 
+
+def tema_smartstore():
+    """Tema global con una paleta neón coherente para todos los botones."""
+    estado = ft.ControlState
+
+    def borde_por_estado(color_base, color_hover, color_foco, color_pulsado):
+        return ft.ButtonStyle(
+            side={
+                estado.DEFAULT: ft.BorderSide(color=color_base, width=1.7),
+                estado.HOVERED: ft.BorderSide(color=color_hover, width=2.0),
+                estado.FOCUSED: ft.BorderSide(color=color_foco, width=2.0),
+                estado.PRESSED: ft.BorderSide(color=color_pulsado, width=2.2),
+                estado.DISABLED: ft.BorderSide(color="#667085", width=1.2),
+            }
+        )
+
+    estilo_elevado = borde_por_estado(
+        "#00D9FF",
+        "#00FFC2",
+        "#A970FF",
+        "#FF3B5C",
+    )
+    estilo_contorneado = borde_por_estado(
+        "#00FFC2",
+        "#00D9FF",
+        "#FFC247",
+        "#FF65C3",
+    )
+    estilo_relleno = borde_por_estado(
+        "#A970FF",
+        "#FF65C3",
+        "#00D9FF",
+        "#FFC247",  # ámbar eléctrico
+    )
+    estilo_texto = borde_por_estado(
+        "#FFC247",
+        "#FF3B5C",
+        "#A970FF",
+        "#00D9FF",
+    )
+    estilo_icono = borde_por_estado(
+        "#FF65C3",
+        "#A970FF",
+        "#00FFC2",
+        "#FF3B5C",
+    )
+    return ft.Theme(
+        color_scheme_seed="#4D5F7A",
+        button_theme=ft.ButtonTheme(style=estilo_elevado),
+        outlined_button_theme=ft.OutlinedButtonTheme(style=estilo_contorneado),
+        filled_button_theme=ft.FilledButtonTheme(style=estilo_relleno),
+        text_button_theme=ft.TextButtonTheme(style=estilo_texto),
+        icon_button_theme=ft.IconButtonTheme(style=estilo_icono),
+    )
+
+
 # Intentar importar flet_camera solo si está disponible
 try:
     import flet_camera as fc

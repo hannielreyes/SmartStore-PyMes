@@ -1,7 +1,7 @@
  # EL main.py sirve para ejecutar todo el el programa es el que llama a todas las funciones para que se muetren en pantalla es el corazon y el motor de la es el que despierta a la computadora
 import asyncio
 import flet as ft 
-from utils import comprobar_actualizacion, mostrar_snackbar
+from utils import comprobar_actualizacion, mostrar_snackbar, tema_smartstore
 from app_state import cargar_contexto_usuario
 import warnings
 warnings.filterwarnings("ignore")
@@ -24,6 +24,7 @@ def main(page: ft.Page):
     # PANTALLA/APP: configura la ventana, el tema global y la navegación de SmartStore.
     page.title = "Smart-Store-PyMEs"
     page.theme_mode = ft.ThemeMode.LIGHT
+    page.theme = tema_smartstore()
 
     if page.platform not in (ft.PagePlatform.ANDROID, ft.PagePlatform.ANDROID_TV):
         page.window_width = 420

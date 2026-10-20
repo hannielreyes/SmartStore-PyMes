@@ -1,6 +1,7 @@
 import flet as ft
 
 import database as db
+from database.models import Tienda
 from utils import abrir_selector_imagen, configurar_retroceso, guardar_imagen_en_assets, mostrar_snackbar
 
 
@@ -13,17 +14,23 @@ def editar_tienda_view(page: ft.Page, usuario, tienda_id, go_back):
     # pueda restaurar el contenido de edición correctamente después de volver.
     page.add(ft.Container(height=0))
 
-    tienda = db.obtener_tienda_por_id(tienda_id)
-    if not tienda or tienda[4] != usuario["id"]:
+    fila_tienda = db.obtener_tienda_por_id(tienda_id)
+    if not fila_tienda:
         mostrar_snackbar(page, "❌ No tienes permiso para editar esta tienda.", color="red")
         go_back()
         return
 
-    nombre_input = ft.TextField(label="Nombre de la tienda", value=str(tienda[1] or ""), width=300)
-    whatsapp_input = ft.TextField(label="WhatsApp", value=str(tienda[2] or ""), width=300)
-    direccion_input = ft.TextField(label="Dirección", value=str(tienda[5] or ""), width=300)
-    tasa_input = ft.TextField(label="Tasa de cambio", value=str(tienda[3] or "36.5"), width=300)
-    imagen_seleccionada = [tienda[7]]
+    tienda = Tienda.desde_fila(fila_tienda)
+    if tienda.usuario_id != usuario["id"]:
+        mostrar_snackbar(page, "❌ No tienes permiso para editar esta tienda.", color="red")
+        go_back()
+        return
+
+    nombre_input = ft.TextField(label="Nombre de la tienda", value=str(tienda.nombre or ""), width=300)
+    whatsapp_input = ft.TextField(label="WhatsApp", value=str(tienda.whatsapp or ""), width=300)
+    direccion_input = ft.TextField(label="Dirección", value=str(tienda.direccion or ""), width=300)
+    tasa_input = ft.TextField(label="Tasa de cambio", value=str(tienda.tasa_cambio or "36.5"), width=300)
+    imagen_seleccionada = [tienda.imagen]
     mensaje = ft.Text("", size=12, color="red")
 
     # ACCIÓN: recibe y prepara el nuevo logo seleccionado.

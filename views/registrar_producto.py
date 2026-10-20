@@ -1,6 +1,11 @@
 import flet as ft
 import database as db
-from utils import abrir_selector_imagen, guardar_imagen_en_assets, mostrar_snackbar, configurar_retroceso
+from utils import (
+    abrir_selector_imagen,
+    guardar_imagen_en_assets,
+    mostrar_snackbar,
+    configurar_retroceso,
+)
 import os
 import asyncio
 import base64
@@ -151,6 +156,10 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
             btn_modo.content = ft.Text("Registrar Producto")
             btn_alternativo.content = ft.Text("Cambiar a Modo Calculadora")
             titulo_formulario.value = "Registrar Producto"
+            seccion_registro.visible = True
+            seccion_detalles.visible = True
+            seccion_imagenes.visible = True
+            seccion_calculadora.visible = False
             tasa_texto.visible = True
             nombre_input_reg.visible = True
             marca_input.visible = True
@@ -185,6 +194,10 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
             btn_modo.content = ft.Text("Calcular")
             btn_alternativo.content = ft.Text("Cambiar a Modo Registrar")
             titulo_formulario.value = "Calculadora de precios"
+            seccion_registro.visible = False
+            seccion_detalles.visible = False
+            seccion_imagenes.visible = False
+            seccion_calculadora.visible = True
             tasa_texto.visible = False
             nombre_input_reg.visible = False
             marca_input.visible = False
@@ -675,11 +688,38 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
     btn_alternativo = ft.TextButton(content=ft.Text("Cambiar a Modo Calculadora"), on_click=cambiar_modo)
     btn_limpiar_cal = ft.TextButton("Borrar datos", on_click=limpiar_calculadora, visible=False, width=ancho_btn_limpiar)
     btn_volver_menu = ft.ElevatedButton("↩️ Volver al Menu", on_click=lambda e: go_back(usuario), width=ancho_btn_volver)
+    seccion_registro = ft.Text(
+        "1. Información del producto",
+        size=18,
+        weight=ft.FontWeight.BOLD,
+        color="#040D4A",
+    )
+    seccion_detalles = ft.Text(
+        "2. Detalles adicionales",
+        size=18,
+        weight=ft.FontWeight.BOLD,
+        color="#040D4A",
+    )
+    seccion_imagenes = ft.Text(
+        "3. Imágenes del producto",
+        size=18,
+        weight=ft.FontWeight.BOLD,
+        color="#040D4A",
+    )
+    seccion_calculadora = ft.Text(
+        "1. Datos para el cálculo",
+        size=18,
+        weight=ft.FontWeight.BOLD,
+        color="#040D4A",
+        visible=False,
+    )
+
     form = ft.Container(
         content=ft.Column(
             [
                 ft.Container(height=40),
                 titulo_formulario,
+                seccion_registro,
                 tasa_texto,
                 nombre_input_reg,
                 categoria_input,
@@ -689,11 +729,13 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
                 cantidad_input,
                 descripcion_input,
                 estado_input,
+                seccion_detalles,
                 etiquetas_input,
                 color_input,
                 material_input,
                 garantia_input,
                 especificacion_input,
+                seccion_imagenes,
                 ft.Column([
                     btn_imagen,
                     btn_reemplazar_imagen,
@@ -704,6 +746,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
                     btn_quitar_imagen_2,
                     imagen_preview_2,
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
+                seccion_calculadora,
                 tasa_input_cal,
                 moneda_cal,
                 precio_input_cal,

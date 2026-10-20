@@ -1,5 +1,6 @@
 import flet as ft
 import database as db
+from database.models import Tienda
 from utils import configurar_retroceso, mostrar_snackbar, imagen_disponible
 from configuaraciones_adicionales.editar_tienda import editar_tienda_view
 from datetime import datetime
@@ -22,12 +23,14 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
         image=ft.DecorationImage(src="fondo.png", fit="cover"),
     )
 
-    tienda = db.obtener_tienda_por_id(tienda_id)
-    if not tienda:
+    fila_tienda = db.obtener_tienda_por_id(tienda_id)
+    if not fila_tienda:
         page.add(ft.Text("❌ No encontramos la tienda. Revisa la información e inténtalo nuevamente 😊", width=320, text_align=ft.TextAlign.CENTER))
         return
 
-    logo_tienda = tienda[7] if len(tienda) > 7 else None
+    tienda = Tienda.desde_fila(fila_tienda)
+
+    logo_tienda = tienda.imagen
     logo_control = ft.Container(width=120, height=120, bgcolor="#F3F3F3", border_radius=14)
     if logo_tienda:
         if imagen_disponible(logo_tienda):
@@ -39,7 +42,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                 bgcolor="#F3F3F3",
             )
 
-    usuario_id = tienda[4]
+    usuario_id = tienda.usuario_id
     paypal_email = db.obtener_paypal_email(usuario_id)
 
     def editar_tienda(e):
@@ -175,7 +178,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                             ft.ElevatedButton(
                                 "✅ Marcar como Entregada",
                                 on_click=entregar,
-                                bgcolor="green",
+                                bgcolor="#007A61",
                                 color="white",
                                 width=ancho_btn_entrega,
                             ),
@@ -201,7 +204,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                     ft.ElevatedButton(
                         "📦 Marcar como Preparando",
                         on_click=cambiar_estado(id_reserva=rid, estado_nuevo="Preparando", mensaje_exito="✅ Pedido marcado como preparando."),
-                        bgcolor="#168AAD",
+                        bgcolor="#087E9B",
                         color="white",
                     )
                 )
@@ -210,7 +213,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                     ft.ElevatedButton(
                         "✅ Listo para entregar",
                         on_click=cambiar_estado(id_reserva=rid, estado_nuevo="Listo para entregar", mensaje_exito="✅ Pedido listo para entregar."),
-                        bgcolor="#168AAD",
+                        bgcolor="#087E9B",
                         color="white",
                     )
                 )
@@ -236,7 +239,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                     ft.ElevatedButton(
                         "✅ Marcar como Entregada",
                         on_click=hacer_entregar(rid),
-                        bgcolor="#EFA520",
+                        bgcolor="#9A5B00",
                         color="white",
                     ) if estado == "Listo para entregar" else ft.Container(),
                 ], spacing=5),
@@ -306,7 +309,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
 
         def eliminar(e):
             try:
-                eliminado, mensaje = db.eliminar_tienda(tienda_id, tienda[4])
+                eliminado, mensaje = db.eliminar_tienda(tienda_id, tienda.usuario_id)
                 if not eliminado:
                     dialogo.open = False
                     page.update()
@@ -324,12 +327,12 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                 modal=True,
                 title=ft.Text("💰 Primero retira tu saldo", size=18, weight=ft.FontWeight.BOLD, color="#040D4A"),
                 content=ft.Text(
-                    f"La tienda '{tienda[1]}' todavía tiene C$ {saldo:,.2f} en su billetera. "
+                    f"La tienda '{tienda.nombre}' todavía tiene C$ {saldo:,.2f} en su billetera. "
                     "La billetera no es lo que se eliminará, pero debes retirar ese dinero antes de eliminar la tienda para no perderlo. 😊",
                     size=14,
                     color="#555555",
                 ),
-                actions=[ft.TextButton("↩️ Volver", on_click=volver), ft.ElevatedButton("💰 Ir a Mi Perfil", on_click=ir_a_billetera, bgcolor="#EFD320", color="white")],
+                actions=[ft.TextButton("↩️ Volver", on_click=volver), ft.ElevatedButton("💰 Ir a Mi Perfil", on_click=ir_a_billetera, bgcolor="#7042B8", color="white")],
                 actions_alignment=ft.MainAxisAlignment.END,
             )
         else:
@@ -337,11 +340,11 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                 modal=True,
                 title=ft.Text("🗑️ ¿Eliminar esta tienda?", size=18, weight=ft.FontWeight.BOLD, color="#040D4A"),
                 content=ft.Text(
-                    f"Se eliminarán '{tienda[1]}' y sus productos, reservas e información relacionada. La acción no se puede deshacer. 😔",
+                    f"Se eliminarán '{tienda.nombre}' y sus productos, reservas e información relacionada. La acción no se puede deshacer. 😔",
                     size=14,
                     color="#555555",
                 ),
-                actions=[ft.TextButton("↩️ Volver", on_click=volver), ft.ElevatedButton("🗑️ Sí, eliminar", on_click=eliminar, bgcolor="#D84315", color="white")],
+                actions=[ft.TextButton("↩️ Volver", on_click=volver), ft.ElevatedButton("🗑️ Sí, eliminar", on_click=eliminar, bgcolor="#C62845", color="white")],
                 actions_alignment=ft.MainAxisAlignment.END,
             )
         page.overlay.append(dialogo)
@@ -354,18 +357,18 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
     contenido_principal = [
         ft.Container(height=40),
         ft.Text(
-            f"🏪 Tienda - {tienda[1]}" if not mostrar_billetera else f"💰 Billetera de la tienda - {tienda[1]}",
+            f"🏪 Tienda - {tienda.nombre}" if not mostrar_billetera else f"💰 Billetera de la tienda - {tienda.nombre}",
             size=28,
             weight=ft.FontWeight.BOLD,
             color="#040D4A",
         ),
         logo_control,
-        ft.Text(f"Direccion: {tienda[5] or 'No indicada'}", size=14, color="#555555"),
-        ft.Text(f"WhatsApp: {tienda[2] or 'No indicado'}", size=14, color="#555555"),
-        ft.Text(f"Tasa de cambio: {tienda[3] or 'No indicada'}", size=14, color="#555555"),
+        ft.Text(f"Direccion: {tienda.direccion or 'No indicada'}", size=14, color="#555555"),
+        ft.Text(f"WhatsApp: {tienda.whatsapp or 'No indicado'}", size=14, color="#555555"),
+        ft.Text(f"Tasa de cambio: {tienda.tasa_cambio or 'No indicada'}", size=14, color="#555555"),
     ]
     if not mostrar_billetera:
-        contenido_principal.append(ft.ElevatedButton("✏️ Editar tienda", on_click=editar_tienda, bgcolor="#168AAD", color="white"))
+        contenido_principal.append(ft.ElevatedButton("✏️ Editar tienda", on_click=editar_tienda, bgcolor="#7042B8", color="white"))
     if mostrar_billetera:
         contenido_principal.extend([ft.Divider(height=10), billetera_card])
     if mostrar_entregas:
@@ -383,7 +386,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
             ft.ElevatedButton(
                 "🗑️ Eliminar tienda",
                 on_click=confirmar_eliminacion_tienda,
-                bgcolor="#D84315",
+                bgcolor="#C62845",
                 color="white",
             )
         )

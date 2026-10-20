@@ -2,6 +2,8 @@
 import database as db
 from views.reservar import reservar_view
 from views.top_productos import top_productos_view
+from services.cola_tareas import encolar_busqueda_sin_resultado
+from services.busqueda_lineal import buscar_productos_linealmente
 import os
 from utils import (
     mostrar_snackbar,
@@ -129,11 +131,17 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
     )
 
     # El buscador es un escaparate global; el inventario privado se muestra en Inventario.
+    error_carga_productos = False
     try:
-        productos_aleatorios = db.obtener_productos_aleatorios(limit=5, usuario_id=usuario["id"])
+        productos_aleatorios = db.obtener_productos_aleatorios(limit=5)
     except RuntimeError:
         productos_aleatorios = []
-        mostrar_snackbar(page, "⚠️ No hay conexión a internet en este momento 😅 Revisa tu red e intenta nuevamente.", color="orange")
+        error_carga_productos = True
+        mostrar_snackbar(
+            page,
+            "⚠️ No se pudieron cargar los productos desde la base de datos. Intenta nuevamente más tarde.",
+            color="orange",
+        )
 
     tiendas_usuario = db.obtener_tiendas_usuario(usuario["id"])
     ids_tiendas_usuario = {tienda[0] for tienda in tiendas_usuario}
@@ -175,8 +183,24 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
         page.update()
 
     aleatorios_column = ft.Row(spacing=12, wrap=False, scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True), width=570, alignment=ft.MainAxisAlignment.CENTER)
-    if not productos_aleatorios:
-        aleatorios_column.controls.append(ft.Text("⚠️ No hay conexión a internet por el momento 😅\nPrueba de nuevo cuando la red vuelva.", width=300, text_align=ft.TextAlign.CENTER, color="#4D5F7A"))
+    if error_carga_productos:
+        aleatorios_column.controls.append(
+            ft.Text(
+                "No se pudieron consultar los productos. Intenta nuevamente más tarde.",
+                width=300,
+                text_align=ft.TextAlign.CENTER,
+                color="#4D5F7A",
+            )
+        )
+    elif not productos_aleatorios:
+        aleatorios_column.controls.append(
+            ft.Text(
+                "Aún no hay productos registrados en SmartStore. Cuando una tienda publique productos, aparecerán aquí.",
+                width=300,
+                text_align=ft.TextAlign.CENTER,
+                color="#4D5F7A",
+            )
+        )
     else:
         for p in productos_aleatorios:
             pid = p[0]
@@ -321,11 +345,12 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
 
         try:
             productos = db.obtener_productos_por_nombre(busqueda)
+            productos = buscar_productos_linealmente(productos, busqueda)
         except RuntimeError:
             resultados.controls.append(
                 ft.Container(
                     content=ft.Text(
-                        "⚠️ No hay conexión a internet 😅\nNo puedo consultar productos en este momento. Vuelve a intentarlo cuando la red esté disponible.",
+                        "⚠️ No se pudieron consultar los productos desde la base de datos. Intenta nuevamente más tarde.",
                         width=300,
                         text_align=ft.TextAlign.CENTER,
                         color="#4D5F7A",
@@ -340,12 +365,8 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
         if not productos or len(productos) == 0:
             solicitud = busqueda.strip()
             if len(solicitud) >= 4:
-                registrada_remotamente = False
-                try:
-                    registrada_remotamente = db.registrar_busqueda_sin_resultado(usuario["id"], solicitud)
-                except Exception:
-                    pass
-                if not registrada_remotamente:
+                encolada = encolar_busqueda_sin_resultado(usuario["id"], solicitud)
+                if not encolada:
                     solicitudes = getattr(page, "_smartstore_busquedas_sin_resultado", [])
                     if solicitud.lower() not in {item.lower() for item in solicitudes}:
                         solicitudes.append(solicitud)

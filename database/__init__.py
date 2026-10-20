@@ -17,3 +17,4 @@ from .tiendas import *
 from .productos import *
 from .reservas import *
 from .pagos import *
+from .estadisticas import *

@@ -3,7 +3,12 @@ import asyncio
 import shutil
 from datetime import datetime
 import flet as ft
-from utils import abrir_selector_imagen, guardar_imagen_en_assets, mostrar_snackbar, configurar_retroceso
+from utils import (
+    abrir_selector_imagen,
+    guardar_imagen_en_assets,
+    mostrar_snackbar,
+    configurar_retroceso,
+)
 import database as db
 import flet_camera as fc
 import base64
@@ -681,7 +686,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
                 ft.Text("Crear Tienda", size=28, weight=ft.FontWeight.BOLD, color="#040D4A"),
                 ft.Container(
                     content=ft.Column([
-                        ft.Text("Datos de la tienda", size=18, weight=ft.FontWeight.BOLD),
+                        ft.Text("1. Datos de la tienda", size=18, weight=ft.FontWeight.BOLD),
                         ft.Column(
                             [btn_imagen, btn_reemplazar_logo, btn_quitar_logo, tienda_imagen_preview],
                             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -693,7 +698,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
                 ),
                 ft.Container(
                     content=ft.Column([
-                        ft.Text("Registrar productos", size=18, weight=ft.FontWeight.BOLD),
+                        ft.Text("2. Registrar productos", size=18, weight=ft.FontWeight.BOLD),
                         nombre_prod_input, categoria_input, marca_input, talla_input, precio_input, cantidad_input,
                         descripcion_input, estado_input, etiquetas_input, color_input, material_input, garantia_input, especificacion_input,
                         ft.Column(

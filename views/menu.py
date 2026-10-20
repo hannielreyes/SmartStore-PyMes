@@ -2,7 +2,7 @@ import asyncio
 import random
 import flet as ft
 import database as db
-from utils import configurar_retroceso, mostrar_snackbar, notificaciones_activas
+from utils import configurar_retroceso, mostrar_snackbar, notificaciones_activas, tema_smartstore
 
 def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_to_carrito, go_to_tienda, go_to_perfil, go_to_inventario, go_to_ajustes_adicionales, go_to_control_reservas, contexto=None):
     # PANTALLA: menú principal con navegación, tiendas, inventario y avisos.
@@ -15,7 +15,7 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
     page._reservas_alerta_terminada = False
     page.update()
     page.bgcolor = "white"
-    page.theme = ft.Theme(color_scheme_seed="#4D5F7A")
+    page.theme = tema_smartstore()
     page.update()
 
     for tarea in getattr(page, "_menu_animation_tasks", []):

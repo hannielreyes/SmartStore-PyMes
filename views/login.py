@@ -302,7 +302,7 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
     # ================================================================
     ancho_google = ancho_campos
     img_google = ft.Image(
-        src="whats_icon.png", 
+        src="goog_ico.png", 
         width=18 if ancho_campos < 310 else 20, 
         height=18 if ancho_campos < 310 else 20
     )
