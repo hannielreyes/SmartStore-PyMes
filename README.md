@@ -103,10 +103,24 @@ La aplicacion aun conserva SQLite durante esta etapa para no mezclar datos ni pe
 
 ## Estado de seguridad y pendientes
 
-La aplicacion ya incluye bcrypt para las contrasenas, recuperacion mediante
-codigo de un solo uso y tokens locales revocables. La migracion a Supabase Auth
-esta en curso: el codigo nuevo puede crear identidades Auth, guardar
-`auth_user_id` y restaurar el JWT mediante el `refresh_token` local.
+La aplicacion ya incluye bcrypt para las contrasenas y tokens locales
+revocables. La recuperacion permite validar por separado el codigo de sesion
+o un codigo de un solo uso enviado por Supabase Auth. Cualquiera de los dos
+permite establecer una contrasena nueva y luego iniciar sesion. La opcion de
+codigo de sesion actualiza Supabase Auth mediante una Edge Function; la clave
+administrativa solo se usa en el servidor y nunca se incluye en la app.
+
+### Despliegue de recuperación por código de sesión
+
+Desde la raíz del proyecto, vincula Supabase y despliega la función:
+
+```powershell
+supabase link --project-ref TU_PROJECT_REF
+supabase functions deploy smartstore-session-recovery
+```
+
+La función utiliza `SUPABASE_SERVICE_ROLE_KEY` del entorno seguro de Supabase
+Edge Functions. No copies esa clave a `.env`, a la app ni a la APK.
 
 ### Archivo de pruebas
 
@@ -122,14 +136,17 @@ ejecutarse en produccion ni en un proyecto con datos reales.
 2. Crear una cuenta nueva desde la app y verificar que `usuarios.auth_user_id`
 	tenga un UUID.
 3. Probar login, cierre, reapertura automatica y revocacion del token.
-4. Migrar la recuperacion de contrasena para que cambie la contrasena de
-	Supabase Auth, no solo la columna antigua de `usuarios`.
-5. Decidir el tratamiento de cuentas antiguas sin `auth_user_id`; no borrarlas
+4. Desplegar `smartstore-session-recovery` para habilitar la recuperación con
+	código de sesión.
+5. En Supabase Auth, configurar la plantilla de correo de recuperación para
+	incluir `{{ .Token }}`; la aplicación valida ese código antes de permitir
+	cambiar la contraseña.
+6. Decidir el tratamiento de cuentas antiguas sin `auth_user_id`; no borrarlas
 	automaticamente.
-6. Ejecutar una copia de seguridad y probar con cuentas compradora y vendedora.
-7. Ejecutar `supabase_production_rls.sql` solo despues de completar los pasos
+7. Ejecutar una copia de seguridad y probar con cuentas compradora y vendedora.
+8. Ejecutar `supabase_production_rls.sql` solo despues de completar los pasos
 	anteriores.
-8. Confirmar que la APK usa `anon/public` y nunca `service_role`.
+9. Confirmar que la APK usa `anon/public` y nunca `service_role`.
 
 Si una prueba falla despues de activar RLS, no se debe volver a poner
 `using (true)` en produccion. Hay que revisar el JWT, `auth_user_id` y la

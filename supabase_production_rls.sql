@@ -13,6 +13,8 @@
 --   5. Revisar las politicas con una cuenta de prueba compradora y otra
 --      vendedora; comprobar que ninguna puede modificar datos ajenos.
 --   6. Hacer una copia de seguridad antes de ejecutar este archivo.
+--   7. Ejecutar supabase_checkout_retiro_migration.sql para crear las RPC
+--      de pago directo, disponibilidad y canje antes de aplicar estos grants.
 --
 -- EFECTO PRINCIPAL:
 --   * Revoca el acceso directo de anon a las tablas.
@@ -124,7 +126,13 @@ grant select, insert, update on public.usuarios to authenticated;
 grant select, insert, update, delete on public.sesiones_dispositivo, public.tiendas, public.productos, public.reservas, public.solicitudes_productos to authenticated;
 revoke execute on function public.crear_reserva(bigint, bigint, integer, bigint) from anon;
 revoke execute on function public.cancelar_reservas_vencidas_rpc() from anon;
-revoke execute on function public.procesar_pago_reserva_rpc(bigint, numeric, bigint) from anon;
+revoke execute on function public.procesar_pago_reserva_rpc(bigint, numeric, bigint, text) from anon;
+revoke execute on function public.obtener_estado_disponibilidad_producto_rpc(bigint) from anon;
+revoke execute on function public.cancelar_reserva_compra_rpc(bigint) from anon;
+revoke execute on function public.canjear_codigo_retiro_rpc(bigint, text) from anon;
 grant execute on function public.crear_reserva(bigint, bigint, integer, bigint) to authenticated;
 grant execute on function public.cancelar_reservas_vencidas_rpc() to authenticated;
-grant execute on function public.procesar_pago_reserva_rpc(bigint, numeric, bigint) to authenticated;
+grant execute on function public.procesar_pago_reserva_rpc(bigint, numeric, bigint, text) to authenticated;
+grant execute on function public.obtener_estado_disponibilidad_producto_rpc(bigint) to authenticated;
+grant execute on function public.cancelar_reserva_compra_rpc(bigint) to authenticated;
+grant execute on function public.canjear_codigo_retiro_rpc(bigint, text) to authenticated;

@@ -141,6 +141,8 @@ def inicializar_bd():
             fecha_entrega TIMESTAMP,
             tienda_id INTEGER,
             order_id TEXT,
+            codigo_retiro TEXT UNIQUE,
+            codigo_retiro_usado_en TEXT,
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
             FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE,
             FOREIGN KEY (tienda_id) REFERENCES tiendas(id) ON DELETE CASCADE
@@ -151,9 +153,23 @@ def inicializar_bd():
         cursor.execute("ALTER TABLE reservas ADD COLUMN fecha_expiracion TEXT")
     except sqlite3.OperationalError:
         pass
+    for columna in ("codigo_retiro", "codigo_retiro_usado_en"):
+        try:
+            cursor.execute(f"ALTER TABLE reservas ADD COLUMN {columna} TEXT")
+        except sqlite3.OperationalError:
+            pass
     cursor.execute(
-        "UPDATE reservas SET fecha_expiracion = datetime(fecha, '+24 hours') "
+        "UPDATE reservas SET fecha_expiracion = datetime(fecha, '+10 minutes') "
         "WHERE fecha_expiracion IS NULL AND fecha IS NOT NULL"
+    )
+    cursor.execute(
+        "UPDATE reservas SET fecha_expiracion = datetime(fecha, '+10 minutes') "
+        "WHERE estado = 'Reservado' AND fecha IS NOT NULL "
+        "AND (fecha_expiracion IS NULL OR fecha_expiracion > datetime(fecha, '+10 minutes'))"
+    )
+    cursor.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_reservas_codigo_retiro "
+        "ON reservas(codigo_retiro) WHERE codigo_retiro IS NOT NULL"
     )
 
     # 1. Crear Administrador y asignarle el PayPal Vendedor Sandbox

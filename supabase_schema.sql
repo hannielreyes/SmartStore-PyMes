@@ -66,7 +66,9 @@ create table if not exists public.reservas (
     fecha_entrega timestamptz,
     tienda_id bigint references public.tiendas(id) on delete cascade,
     order_id text unique,
-    fecha_expiracion timestamptz
+    fecha_expiracion timestamptz,
+    codigo_retiro text unique,
+    codigo_retiro_usado_en timestamptz
 );
 
 create index if not exists idx_tiendas_usuario_id on public.tiendas(usuario_id);

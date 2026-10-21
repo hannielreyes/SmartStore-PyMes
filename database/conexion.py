@@ -38,6 +38,9 @@ PAYPAL_COMPRADOR_SANDBOX = "sb-ysdcv52256136@personal.example.com"
 
 def _marcar_supabase_caido(mensaje=""):
     global _SUPABASE_FALLIDA, _SUPABASE_FALLIDA_HASTA
+    if "42703" in str(mensaje) or "column" in str(mensaje).lower() and "does not exist" in str(mensaje).lower():
+        print(f"[Supabase] El esquema necesita una migración; se conserva la conexión remota. {mensaje}")
+        return
     if _SUPABASE_FALLIDA:
         return
     _SUPABASE_FALLIDA = True
@@ -75,6 +78,11 @@ def _supabase_lista(tabla, parametros=""):
             _SUPABASE_FALLIDA_HASTA = None
         return datos or []
     except Exception as exc:
+        # Un HTTP 400 con Postgres 42703 indica una migración pendiente,
+        # no una caída de red. Mantén Supabase activo para no mezclar datos
+        # remotos con el SQLite local.
+        if "42703" in str(exc) or "column" in str(exc).lower() and "does not exist" in str(exc).lower():
+            raise RuntimeError(f"El esquema de Supabase necesita una migración: {exc}") from exc
         _marcar_supabase_caido(f"Error en consulta a {tabla}: {exc}")
         raise RuntimeError(f"No hay conexión a internet o la base de datos no está disponible: {exc}") from exc
 
@@ -126,6 +134,29 @@ def get_db_connection():
     """Abre SQLite con claves foráneas activadas."""
     conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA foreign_keys = ON;")
+    # Mantiene utilizable el respaldo local incluso si Supabase aún está
+    # recuperándose. En una instalación remota normal este bloque no se usa.
+    tabla = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'reservas'"
+    ).fetchone()
+    if tabla:
+        columnas = {fila[1] for fila in conn.execute("PRAGMA table_info(reservas)")}
+        for nombre, tipo in (
+            ("fecha_expiracion", "TEXT"),
+            ("codigo_retiro", "TEXT"),
+            ("codigo_retiro_usado_en", "TEXT"),
+        ):
+            if nombre not in columnas:
+                conn.execute(f"ALTER TABLE reservas ADD COLUMN {nombre} {tipo}")
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_reservas_codigo_retiro "
+            "ON reservas(codigo_retiro) WHERE codigo_retiro IS NOT NULL"
+        )
+        conn.execute(
+            "UPDATE reservas SET fecha_expiracion = datetime(fecha, '+10 minutes') "
+            "WHERE estado = 'Reservado' AND fecha IS NOT NULL "
+            "AND (fecha_expiracion IS NULL OR fecha_expiracion > datetime(fecha, '+10 minutes'))"
+        )
     return conn
 
 

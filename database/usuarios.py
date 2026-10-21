@@ -21,6 +21,7 @@ from supabase_config import (
     limpiar_token_auth,
     refrescar_sesion_auth,
     obtener_refresh_token_auth,
+    supabase_function_request,
 )
 
 def obtener_usuario(correo, contraseña):
@@ -310,6 +311,82 @@ def establecer_contraseña_auth(nueva_contraseña):
             return True
         print(f"[Supabase Auth] Error al establecer contraseña: {exc}")
         return False
+
+
+def solicitar_codigo_recuperacion_auth(correo):
+    if not _supabase_activo():
+        return False
+    supabase_auth_request(
+        "recover",
+        datos={"email": str(correo or "").strip()},
+    )
+    return True
+
+
+def validar_codigo_recuperacion_auth(correo, codigo):
+    if not _supabase_activo():
+        return False
+    try:
+        _, respuesta = supabase_auth_request(
+            "verify",
+            datos={
+                "email": str(correo or "").strip(),
+                "token": str(codigo or "").strip(),
+                "type": "recovery",
+            },
+        )
+    except RuntimeError as exc:
+        detalle = str(exc).lower()
+        if any(mensaje in detalle for mensaje in (
+            "otp_expired",
+            "email link is invalid",
+            "token has expired or is invalid",
+            "invalid otp",
+        )):
+            return False
+        raise
+
+    if not isinstance(respuesta, dict):
+        return False
+    usuario_auth = respuesta.get("user") or {}
+    correo_auth = str(usuario_auth.get("email") or "").strip().casefold()
+    if correo_auth != str(correo or "").strip().casefold():
+        return False
+    access_token = respuesta.get("access_token")
+    if not access_token:
+        return False
+
+    establecer_sesion_auth(access_token, respuesta.get("refresh_token"))
+    return True
+
+
+def validar_codigo_sesion_recuperacion_auth(correo, codigo):
+    if not _supabase_activo():
+        return False
+    _, respuesta = supabase_function_request(
+        "smartstore-session-recovery",
+        {
+            "action": "verify_session_code",
+            "email": str(correo or "").strip(),
+            "code": str(codigo or "").strip(),
+        },
+    )
+    return bool(isinstance(respuesta, dict) and respuesta.get("valid"))
+
+
+def cambiar_contrasena_con_codigo_sesion_auth(correo, codigo, nueva_contrasena):
+    if not _supabase_activo():
+        return False
+    _, respuesta = supabase_function_request(
+        "smartstore-session-recovery",
+        {
+            "action": "reset_password_with_session_code",
+            "email": str(correo or "").strip(),
+            "code": str(codigo or "").strip(),
+            "password": nueva_contrasena,
+        },
+    )
+    return bool(isinstance(respuesta, dict) and respuesta.get("ok"))
 
 
 

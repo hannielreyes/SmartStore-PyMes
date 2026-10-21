@@ -1,227 +1,106 @@
-import flet as ft
-from utils import mostrar_snackbar, configurar_retroceso, imagen_disponible, boton_glossy
-import database as db
-from database.models import ProductoReserva, Tienda
-from datetime import datetime, timedelta
+import asyncio
 import os
 
+import flet as ft
+
+import database as db
+from database.models import ProductoReserva, Tienda
+from utils import boton_glossy, configurar_retroceso, imagen_disponible, mostrar_snackbar
+from views.carrito import iniciar_pago_reserva
+
+
 def reservar_view(page: ft.Page, usuario, producto_id, producto_nombre, producto_stock, go_back):
-    # PANTALLA: formulario de reserva de un producto y confirmación del pedido.
-    # Pantalla de confirmación de reserva y cálculo del total a pagar.
     configurar_retroceso(page, go_back)
     page.clean()
     page.bgcolor = "white"
-
-    fondo = ft.Container(
-        expand=True,
-        image=ft.DecorationImage(src="fondopro_Copy.png", fit="cover"),
-    )
-
-    # Obtener el precio del producto
-    fila_producto = db.obtener_producto_por_id(producto_id)
-    producto = ProductoReserva.desde_fila(fila_producto) if fila_producto else None
-    precio_c = float(producto.precio_cordobas or 0) if producto else 0.0
+    producto_fila = db.obtener_producto_por_id(producto_id)
+    producto = ProductoReserva.desde_fila(producto_fila) if producto_fila else None
+    precio = float(producto.precio_cordobas or 0) if producto else 0.0
     tienda_id = producto.tienda_id if producto else None
-    marca = (producto.marca or "No indicada") if producto else "No indicada"
-    talla = (producto.talla or "No indicada") if producto else "No indicada"
-    direccion = "No indicada"
-    nombre_tienda = "Tienda no identificada"
-    logo_tienda = None
-    fila_tienda = db.obtener_tienda_por_id(tienda_id) if tienda_id else None
-    tienda = Tienda.desde_fila(fila_tienda) if fila_tienda else None
-    if tienda:
-        nombre_tienda = tienda.nombre or nombre_tienda
-        direccion = tienda.direccion or direccion
-        logo_tienda = tienda.imagen
+    tienda_fila = db.obtener_tienda_por_id(tienda_id) if tienda_id else None
+    tienda = Tienda.desde_fila(tienda_fila) if tienda_fila else None
+    nombre_tienda = tienda.nombre if tienda else "Tienda no identificada"
+    direccion = tienda.direccion if tienda else "No indicada"
+    marca = producto.marca or "No indicada" if producto else "No indicada"
+    talla = producto.talla or "No indicada" if producto else "No indicada"
+    logo = ft.Container(width=64, height=64, bgcolor="#F3F3F3", border_radius=12)
+    if tienda and tienda.imagen and imagen_disponible(tienda.imagen):
+        logo = ft.Image(src=tienda.imagen, width=64, height=64, fit="cover", border_radius=12)
 
-    logo_control = ft.Container(width=64, height=64, bgcolor="#F3F3F3", border_radius=12)
-    if logo_tienda:
-        logo_path = logo_tienda if os.path.isabs(logo_tienda) else os.path.join(os.getcwd(), logo_tienda)
-        if imagen_disponible(logo_tienda):
-            logo_control = ft.Container(
-                content=ft.Image(src=logo_tienda, width=64, height=64, fit="cover"),
-                width=64,
-                height=64,
-                border_radius=12,
-                bgcolor="#F3F3F3",
-            )
+    cantidad = ft.TextField(label="Cantidad", value="1", width=300, keyboard_type=ft.KeyboardType.NUMBER)
+    total = ft.Text(f"Total: C${precio:.2f}", size=16, color="#E61A1A", weight=ft.FontWeight.BOLD)
 
-    # Campo de cantidad y texto de total; ambos se actualizan mientras el cliente escribe.
-    cantidad_field = ft.TextField(
-        label="¿Cuántos deseas reservar?",
-        value="1",
-        width=300,
-        label_style=ft.TextStyle(color="#0A2540", weight=ft.FontWeight.BOLD),
-        text_style=ft.TextStyle(color="#0A2540", weight=ft.FontWeight.BOLD),
-        border_color="#0A2540",
-        focused_border_color="#0A2540",
-    )
-    total_text = ft.Text(f"Total: C${precio_c:.2f} por unidad", size=16, color="#E61A1A", weight=ft.FontWeight.BOLD)
-
-    def actualizar_total(e):
+    def actualizar(_):
         try:
-            cant = int(cantidad_field.value)
-            if cant > 0 and cant <= producto_stock:
-                total_text.value = f"Total: C${precio_c * cant:.2f} por {cant} unidad(es)"
-            else:
-                total_text.value = f"Total: C${precio_c:.2f} por unidad"
+            cant = int(cantidad.value)
+            total.value = f"Total: C${precio * cant:.2f}" if 0 < cant <= producto_stock else "Cantidad no válida"
             page.update()
-        except:
+        except (TypeError, ValueError):
             pass
 
-    cantidad_field.on_change = actualizar_total
+    cantidad.on_change = actualizar
 
-    def confirmar_reserva(e):
-        try:
-            cant = int(cantidad_field.value)
-            if not (1 <= cant <= producto_stock):
-                mostrar_snackbar(page, ft.Text(f"⚠️ Indica una cantidad válida entre 1 y {producto_stock} unidades disponibles 😊", color="red"))
-                return
+    async def observar_disponibilidad():
+        anterior = "en_proceso"
+        for _ in range(150):
+            await asyncio.sleep(4)
+            estado = await asyncio.to_thread(db.obtener_estado_disponibilidad_producto, producto_id)
+            if estado != anterior:
+                anterior = estado
+                if estado == "disponible":
+                    mostrar_snackbar(page, "El producto volvió a estar disponible.", color="green", duracion=6000)
+                    return
+                if estado == "no_disponible":
+                    mostrar_snackbar(page, "El producto ya no está disponible.", color="orange", duracion=6000)
+                    return
 
-            if tienda_id is None:
-                mostrar_snackbar(page, "❌ Error: Producto sin tienda asociada", color="red")
-                return
-
-            # Guardar la reserva
-            creada, mensaje = db.agregar_reserva(usuario['id'], producto_id, cant, tienda_id)
-            if not creada:
-                mostrar_snackbar(page, ft.Text(f"❌ {mensaje}", color="red"))
-                return
-
-            # Calcular total
-            total = precio_c * cant
-
-            # Mostrar el diálogo con el mensaje estilizado
-            mostrar_mensaje_exito(page, producto_nombre, nombre_tienda, cant, total, go_back)
-
-        except Exception as error:
-            mostrar_snackbar(page, ft.Text(f"❌ Error: {str(error)}", color="red"))
-
-    def mostrar_mensaje_exito(page, producto, tienda_nombre, cantidad, total, go_back):
-        """Muestra un diálogo con el mensaje de éxito estilizado."""
-        
-        def cerrar_dialogo(e):
-            dlg.open = False
-            page.update()
-            go_back()  # Volver a la búsqueda
-
+    def mostrar_espera(mensaje):
+        en_proceso = "completando su pago" in mensaje.lower()
         dlg = ft.AlertDialog(
             modal=True,
-            title=ft.Text(
-                "🎉 ¡Genial, tu reserva está casi lista!",
-                size=20,
-                weight=ft.FontWeight.BOLD,
-                color="#0A2540",
-            ),
-            content=ft.Column(
-                [
-                    ft.Text(
-                        f"Has reservado {cantidad} x {producto} por un total de C${total:.2f}",
-                        size=16,
-                        color="#2E7D32",
-                    ),
-                    ft.Text(
-                        f"🏪 Tienda: {tienda_nombre}",
-                        size=15,
-                        weight=ft.FontWeight.BOLD,
-                        color="#040D4A",
-                    ),
-                    ft.Divider(height=10),
-                    ft.Text(
-                        "📌 Recuerda estos pasos para que el producto sea tuyo:",
-                        size=15,
-                        weight=ft.FontWeight.BOLD,
-                        color="#E65100",
-                    ),
-                    ft.Text(
-                        "1️⃣ Tienes 24 horas para completar el pago.",
-                        size=14,
-                        color="#C62828",
-                    ),
-                    ft.Text(
-                        "2️⃣ Si no confirmas en ese tiempo, tu reserva se cancelará automáticamente.",
-                        size=14,
-                        color="#C62828",
-                    ),
-                    ft.Text(
-                        "3️⃣ Para pagar y hacer tuya la reserva, ve a 'Reservas y Carrito'.",
-                        size=14,
-                        color="#6A1B9A",
-                    ),
-                    ft.Divider(height=10),
-                    ft.Text(
-                        "🎉 ¡Gracias por confiar en nosotros!",
-                        size=16,
-                        weight=ft.FontWeight.BOLD,
-                        color="#2E7D32",
-                    ),
-                    ft.Text(
-                        "Estamos felices de que formes parte de nuestra comunidad.",
-                        size=13,
-                        color="#4E342E",
-                        italic=True,
-                    ),
-                ],
-                spacing=8,
-                tight=True,
-            ),
-            actions=[
-                ft.ElevatedButton(
-                    "✅ Entendido",
-                    on_click=cerrar_dialogo,
-                    bgcolor="#0A2540",
-                    color="white",
-                ),
-            ],
-            actions_alignment=ft.MainAxisAlignment.CENTER,
+            title=ft.Text("Producto en proceso" if en_proceso else "Producto no disponible"),
+            content=ft.Text(mensaje),
+            actions=[ft.TextButton("Entendido", on_click=lambda e: (setattr(dlg, "open", False), page.update(), go_back()))],
         )
         page.overlay.append(dlg)
         dlg.open = True
         page.update()
+        if en_proceso:
+            page.run_task(observar_disponibilidad)
 
-    cantidad_field.on_submit = confirmar_reserva
+    def confirmar(_):
+        try:
+            cant = int(cantidad.value)
+        except (TypeError, ValueError):
+            mostrar_snackbar(page, "Ingresa una cantidad válida.", color="red")
+            return
+        if not producto or not tienda_id or not 1 <= cant <= producto_stock:
+            mostrar_snackbar(page, "La cantidad indicada no está disponible.", color="red")
+            return
+        creada, mensaje, reserva_id = db.agregar_reserva(usuario["id"], producto_id, cant, tienda_id)
+        if not creada:
+            mostrar_espera(mensaje)
+            return
+        iniciar_pago_reserva(page, reserva_id, tienda_id, precio * cant, go_back)
 
-    # Formulario visual de reserva: tienda, producto, cantidad y botones finales.
-    content = ft.Container(
-        content=ft.Column(
-            [
-                ft.Container(height=40),
-                ft.Text("Realizar Reserva", size=28, weight=ft.FontWeight.BOLD, color="#0A2540"),
-                ft.Text(f"Producto: {producto_nombre}", size=18, weight=ft.FontWeight.BOLD, color="#0A2540"),
-                ft.Text(
-                    f"🏪 Reservarás en la tienda: {nombre_tienda}",
-                    size=17,
-                    weight=ft.FontWeight.BOLD,
-                    color="#0A2540",
-                    text_align=ft.TextAlign.CENTER,
-                ),
-                ft.Text(f"Marca: {marca} | Talla: {talla}", size=14, color="#0A2540", weight=ft.FontWeight.BOLD),
-                ft.Text(f"Dirección de la tienda: {direccion}", size=14, color="#0A2540", weight=ft.FontWeight.BOLD),
-                logo_control,
-                ft.Text("Logo de la tienda", size=12, color="#0A2540", weight=ft.FontWeight.BOLD),
-                ft.Text(f"Precio: C${precio_c:.2f}", size=16, color="#0A2540", weight=ft.FontWeight.BOLD),
-                ft.Text(f"Stock disponible: {producto_stock}", size=14, color="#0A2540", weight=ft.FontWeight.BOLD),
-                cantidad_field,
-                total_text,
-                boton_glossy("Confirmar Reserva", on_click=confirmar_reserva, color="#EFA520", text_color="#0A2540", width=220),
-                boton_glossy("↩️ Volver a Buscar", on_click=lambda e: go_back(), color="#E7ECF3", text_color="#0A2540", width=220),
-            ],
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            alignment=ft.MainAxisAlignment.CENTER,
-            spacing=15,
-            scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True),
-        ),
-        padding=20,
-        border_radius=22,
-        bgcolor=None,
+    contenido = ft.Column(
+        [
+            ft.Container(height=24),
+            ft.Text("Reservar y pagar", size=28, weight=ft.FontWeight.BOLD, color="#0A2540"),
+            ft.Text(f"Producto: {producto_nombre}", size=18, weight=ft.FontWeight.BOLD),
+            ft.Text(f"Tienda: {nombre_tienda}"),
+            ft.Text(f"Marca: {marca} | Talla: {talla}"),
+            ft.Text(f"Dirección: {direccion}"),
+            logo,
+            ft.Text(f"Precio: C${precio:.2f}  ·  Disponibles: {producto_stock}"),
+            cantidad,
+            total,
+            boton_glossy("Continuar al pago", on_click=confirmar, color="#EFA520", text_color="#0A2540", width=220),
+            boton_glossy("↩️ Volver a buscar", on_click=lambda e: go_back(), color="#E7ECF3", text_color="#0A2540", width=220),
+        ],
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        alignment=ft.MainAxisAlignment.CENTER,
+        spacing=14,
+        scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True),
     )
-
-    page.add(
-        ft.Stack(
-            [
-                fondo, 
-                ft.SafeArea(content)
-            ], 
-            expand=True
-        )
-    )
+    page.add(ft.Stack([ft.Container(expand=True, image=ft.DecorationImage(src="fondopro_Copy.png", fit="cover")), ft.SafeArea(ft.Container(contenido, padding=20))], expand=True))

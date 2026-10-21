@@ -390,10 +390,10 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
         [
             ft.Text(f"👤 Bienvenido, {usuario['nombre']}", size=18, weight=ft.FontWeight.W_600, color="#040D4A"),
             ft.Text("Gestiona tu negocio de forma inteligente", size=13, color="#555555"),
+            ft.ElevatedButton("🏪 Crear Tienda", on_click=lambda e: salir_del_menu(go_to_tienda), width=ancho_btn_tienda, color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
             ft.ElevatedButton("📦 Registrar Producto", on_click=lambda e: salir_del_menu(go_to_registrar), width=ancho_btn_registrar, color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
             ft.ElevatedButton("🔍 Buscar Productos", on_click=lambda e: salir_del_menu(go_to_buscar), width=ancho_btn_buscar, color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
-            ft.ElevatedButton("🛒 Reservas y Carrito", on_click=lambda e: salir_del_menu(go_to_carrito), width=ancho_btn_reservas, color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
-            ft.ElevatedButton("🏪 Crear Tienda", on_click=lambda e: salir_del_menu(go_to_tienda), width=ancho_btn_tienda, color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
+            ft.ElevatedButton("🛍️ Mis Compras", on_click=lambda e: salir_del_menu(go_to_carrito), width=ancho_btn_reservas, color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
             ft.Text("📊 Mis Tiendas", size=18, weight=ft.FontWeight.BOLD, color="#040D4A"),
             lista_tiendas,
             ft.Container(

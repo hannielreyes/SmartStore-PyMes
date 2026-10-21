@@ -1,0 +1,2 @@
+[functions.smartstore-session-recovery]
+verify_jwt = true

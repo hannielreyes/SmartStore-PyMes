@@ -231,7 +231,7 @@ class ProductoDestacado:
 
 @dataclass(frozen=True, slots=True)
 class ReservaCliente:
-    """Reserva mostrada al cliente en su carrito."""
+    """Compra pagada mostrada al cliente en Mis Compras."""
 
     id: int
     producto: str | None
@@ -240,10 +240,11 @@ class ReservaCliente:
     precio_dolares: float | None
     estado: str | None
     tienda_id: int | None
+    codigo_retiro: str | None = None
 
     @classmethod
     def desde_fila(cls, fila: Sequence[Any] | "ReservaCliente") -> "ReservaCliente":
-        return fila if isinstance(fila, cls) else cls(*fila[:7])
+        return fila if isinstance(fila, cls) else cls(*fila[:8])
 
 
 @dataclass(frozen=True, slots=True)

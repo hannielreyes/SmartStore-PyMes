@@ -130,6 +130,15 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
 
     # CONTROLES: lista de pedidos pendientes y botones de cambio de estado.
     lista_por_entregar = ft.Column(spacing=10, scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True), height=250)
+    codigo_retiro_field = ft.TextField(label="Código de retiro del cliente", width=320, text_capitalization=ft.TextCapitalization.CHARACTERS)
+
+    def canjear_codigo(_):
+        ok, mensaje = db.canjear_codigo_retiro(tienda_id, usuario_id, codigo_retiro_field.value)
+        mostrar_snackbar(page, mensaje, color="green" if ok else "red", duracion=5000)
+        if ok:
+            codigo_retiro_field.value = ""
+            cargar_por_entregar()
+            cargar_entregadas()
 
     def cargar_por_entregar():
         # CARGA: actualiza las reservas pendientes de entrega.
@@ -155,49 +164,6 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
             usuario_nombre = reserva.cliente or "Cliente"
             fecha_compra = reserva.fecha or "Fecha no disponible"
             estado = reserva.estado or "Estado no disponible"
-
-            def hacer_entregar(id_reserva):
-                # ACCIÓN: prepara el diálogo de confirmación de entrega.
-                def confirmar_entrega(e):
-                    def entregar(e):
-                        dlg.open = False
-                        page.update()
-                        if db.marcar_como_entregada(id_reserva):
-                            cargar_por_entregar()
-                            cargar_entregadas()
-                            mostrar_snackbar(page, "✅ Pedido enviado al historial de entregas.", color="green")
-                        else:
-                            mostrar_snackbar(
-                                page,
-                                "❌ No se pudo marcar la entrega. Verifica que el pago esté confirmado.",
-                                color="red",
-                            )
-                        page.update()
-
-                    def cancelar(e):
-                        dlg.open = False
-                        page.update()
-
-                    dlg = ft.AlertDialog(
-                        # DIÁLOGO: confirma que el pedido fue entregado al cliente.
-                        modal=True,
-                        title=ft.Text("✅ Confirmar entrega"),
-                        content=ft.Text("¿Confirmar que el producto fue entregado al cliente? 😊"),
-                        actions=[
-                            ft.TextButton("↩️ Cancelar", on_click=cancelar),
-                            ft.ElevatedButton(
-                                "✅ Marcar como Entregada",
-                                on_click=entregar,
-                                bgcolor="#007A61",
-                                color="white",
-                                width=ancho_btn_entrega,
-                            ),
-                        ],
-                    )
-                    page.overlay.append(dlg)
-                    dlg.open = True
-                    page.update()
-                return confirmar_entrega
 
             def cambiar_estado(id_reserva, estado_nuevo, mensaje_exito):
                 def ejecutar(e):
@@ -235,23 +201,16 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                     ft.Text(f"📦 Cantidad: {cantidad}  |  💰 Total: C${total:.2f}", size=13),
                     ft.Text(f"📅 Compra: {fecha_compra}", size=11, color="gray"),
                     ft.Text(
-                        "⏳ Pendiente de pago: el cliente debe completar PayPal."
-                        if estado == "Reservado"
-                        else "📦 Pago confirmado: preparando pedido."
+                        "📦 Pago confirmado: pendiente de preparación."
                         if estado == "Pagado"
                         else "🔧 Pedido en preparación."
                         if estado == "Preparando"
                         else "✅ Listo para entregar.",
                         size=12,
-                        color="#E65100" if estado == "Reservado" else "green",
+                        color="green",
                     ),
                     *acciones_estado,
-                    ft.ElevatedButton(
-                        "✅ Marcar como Entregada",
-                        on_click=hacer_entregar(rid),
-                        bgcolor="#9A5B00",
-                        color="white",
-                    ) if estado == "Listo para entregar" else ft.Container(),
+                    ft.Text("El cliente debe mostrar su código para confirmar el retiro.", size=12, color="#555555") if estado == "Listo para entregar" else ft.Container(),
                 ], spacing=5),
                 bgcolor=ft.Colors.WHITE,
                 border_radius=15,
@@ -394,6 +353,8 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
         contenido_principal.extend([
             ft.Divider(height=10),
             ft.Text("📋 Reservas por Entregar", size=18, weight=ft.FontWeight.BOLD, color="#040D4A"),
+            ft.Text("Confirma el pago y registra la entrega con el código de retiro:", size=13, color="#555555"),
+            ft.Row([codigo_retiro_field, ft.ElevatedButton("Validar y entregar", on_click=canjear_codigo, bgcolor="#007A61", color="white")], wrap=True, alignment=ft.MainAxisAlignment.CENTER),
             lista_por_entregar,
             ft.Divider(height=10),
             ft.Text("✅ Historial de Entregas Completadas", size=18, weight=ft.FontWeight.BOLD, color="#040D4A"),

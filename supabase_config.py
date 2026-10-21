@@ -227,6 +227,26 @@ def supabase_auth_request(ruta, metodo="POST", datos=None):
         raise RuntimeError(f"No se pudo contactar Supabase Auth: {error.reason}") from error
 
 
+def supabase_function_request(nombre, datos):
+    """Invoca una Edge Function publicada con la clave pública de la app."""
+    url = f"{SUPABASE_URL}/functions/v1/{nombre}"
+    cuerpo = json.dumps(datos).encode("utf-8")
+    request = Request(url, data=cuerpo, headers={
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+    }, method="POST")
+    try:
+        with urlopen(request, timeout=15) as response:
+            contenido = response.read().decode("utf-8")
+            return response.status, json.loads(contenido) if contenido else None
+    except HTTPError as error:
+        detalle = error.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Supabase Function respondió HTTP {error.code}: {detalle}") from error
+    except URLError as error:
+        raise RuntimeError(f"No se pudo contactar Supabase Functions: {error.reason}") from error
+
+
 def crear_url_oauth_google(redirect_to, code_challenge):
     parametros = (
         f"?provider=google&redirect_to={quote(str(redirect_to), safe='') }"
