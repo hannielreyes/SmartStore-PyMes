@@ -30,7 +30,6 @@ alter table public.sesiones_dispositivo enable row level security;
 alter table public.tiendas enable row level security;
 alter table public.productos enable row level security;
 alter table public.reservas enable row level security;
-alter table public.resenas enable row level security;
 alter table public.solicitudes_productos enable row level security;
 
 drop policy if exists smartstore_test_all on public.usuarios;
@@ -38,7 +37,6 @@ drop policy if exists smartstore_test_all on public.sesiones_dispositivo;
 drop policy if exists smartstore_test_all on public.tiendas;
 drop policy if exists smartstore_test_all on public.productos;
 drop policy if exists smartstore_test_all on public.reservas;
-drop policy if exists smartstore_test_all on public.resenas;
 drop policy if exists smartstore_test_all on public.solicitudes_productos;
 
 drop policy if exists usuarios_propios_select on public.usuarios;
@@ -109,14 +107,6 @@ create policy reservas_participantes_update on public.reservas
         )
     );
 
-drop policy if exists resenas_autenticadas_select on public.resenas;
-drop policy if exists resenas_propias_insert on public.resenas;
-create policy resenas_autenticadas_select on public.resenas
-    for select to authenticated using (true);
-create policy resenas_propias_insert on public.resenas
-    for insert to authenticated
-    with check (usuario_id in (select id from public.usuarios where auth_user_id = auth.uid()));
-
 drop policy if exists solicitudes_autenticadas on public.solicitudes_productos;
 create policy solicitudes_autenticadas on public.solicitudes_productos
     for all to authenticated
@@ -128,10 +118,10 @@ revoke all on public.sesiones_dispositivo from anon;
 revoke all on public.tiendas from anon;
 revoke all on public.productos from anon;
 revoke all on public.reservas from anon;
-revoke all on public.resenas from anon;
 revoke all on public.solicitudes_productos from anon;
+grant select on public.top_productos to anon, authenticated;
 grant select, insert, update on public.usuarios to authenticated;
-grant select, insert, update, delete on public.sesiones_dispositivo, public.tiendas, public.productos, public.reservas, public.resenas, public.solicitudes_productos to authenticated;
+grant select, insert, update, delete on public.sesiones_dispositivo, public.tiendas, public.productos, public.reservas, public.solicitudes_productos to authenticated;
 revoke execute on function public.crear_reserva(bigint, bigint, integer, bigint) from anon;
 revoke execute on function public.cancelar_reservas_vencidas_rpc() from anon;
 revoke execute on function public.procesar_pago_reserva_rpc(bigint, numeric, bigint) from anon;

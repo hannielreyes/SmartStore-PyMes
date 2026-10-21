@@ -65,21 +65,24 @@ def obtener_productos_aleatorios(limit=5, usuario_id=None):
 
 def obtener_top_productos(limit=10, min_compras=3):
     if _supabase_activo():
-        filas = _supabase_lista("reservas", "?select=producto_id&estado=eq.Pagado")
-        conteo = {}
-        for fila in filas:
-            producto_id = fila.get("producto_id")
-            conteo[producto_id] = conteo.get(producto_id, 0) + 1
-        resultados = []
-        for producto_id, compras in sorted(conteo.items(), key=lambda item: item[1], reverse=True):
-            if compras < min_compras:
-                continue
-            producto = _supabase_unico("productos", f"?select=id,nombre,precio_cordobas,precio_dolares,stock&id=eq.{producto_id}&limit=1")
-            if producto:
-                resultados.append(ProductoDestacado(producto["id"], producto["nombre"], producto.get("precio_cordobas"), producto.get("precio_dolares"), producto.get("stock"), compras))
-            if len(resultados) >= limit:
-                break
-        return resultados
+        filas = _supabase_lista(
+            "top_productos",
+            f"?select=id,nombre,precio_cordobas,precio_dolares,stock,compras"
+            f"&compras=gte.{int(min_compras)}&order=compras.desc&limit={int(limit)}",
+        )
+        return [
+            ProductoDestacado.desde_fila(
+                (
+                    fila.get("id"),
+                    fila.get("nombre"),
+                    fila.get("precio_cordobas"),
+                    fila.get("precio_dolares"),
+                    fila.get("stock"),
+                    fila.get("compras", 0),
+                )
+            )
+            for fila in filas
+        ]
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(

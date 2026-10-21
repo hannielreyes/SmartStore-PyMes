@@ -222,7 +222,7 @@ class ProductoDestacado:
         Tres compras obtienen una estrella; cada dos compras adicionales
         suman otra, hasta un máximo de cinco.
         """
-        return max(1, min(5, 1 + (self.compras - 3) // 2))
+        return max(1, min(5, 1 + (self.compras - 2) // 2))
 
     @classmethod
     def desde_fila(cls, fila: Sequence[Any] | "ProductoDestacado") -> "ProductoDestacado":

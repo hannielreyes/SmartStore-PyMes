@@ -36,7 +36,7 @@ do $$
 declare
     tabla text;
 begin
-    foreach tabla in array array['usuarios', 'sesiones_dispositivo', 'tiendas', 'productos', 'reservas', 'resenas'] loop
+    foreach tabla in array array['usuarios', 'sesiones_dispositivo', 'tiendas', 'productos', 'reservas'] loop
         execute format('alter table public.%I enable row level security', tabla);
         execute format('drop policy if exists smartstore_test_all on public.%I', tabla);
         execute format(
@@ -53,7 +53,7 @@ grant select, insert, update, delete on public.sesiones_dispositivo to anon, aut
 grant select, insert, update, delete on public.tiendas to anon, authenticated;
 grant select, insert, update, delete on public.productos to anon, authenticated;
 grant select, insert, update, delete on public.reservas to anon, authenticated;
-grant select, insert, update, delete on public.resenas to anon, authenticated;
+grant select on public.top_productos to anon, authenticated;
 grant usage, select on all sequences in schema public to anon, authenticated;
 
 grant execute on function public.crear_reserva(bigint, bigint, integer, bigint) to anon, authenticated;

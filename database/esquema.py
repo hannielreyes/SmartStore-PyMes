@@ -156,21 +156,6 @@ def inicializar_bd():
         "WHERE fecha_expiracion IS NULL AND fecha IS NOT NULL"
     )
 
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS resenas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            producto_id INTEGER,
-            usuario_id INTEGER,
-            calificacion INTEGER,
-            comentario TEXT,
-            fecha TEXT,
-            FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE,
-            FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL
-        )
-    """
-    )
-
     # 1. Crear Administrador y asignarle el PayPal Vendedor Sandbox
     cursor.execute(
         "SELECT * FROM usuarios WHERE correo = 'admin@smartstore.com'"
