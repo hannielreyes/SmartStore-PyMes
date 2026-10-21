@@ -27,6 +27,13 @@ def recuperar_view(page: ft.Page, go_to_menu):
     codigo_correo_field = ft.TextField(label="Código recibido por correo", width=300, visible=False)
     nueva_contraseña_field = ft.TextField(label="Nueva contraseña", password=True, can_reveal_password=True, width=300, visible=False)
     confirmar_contraseña_field = ft.TextField(label="Confirmar nueva contraseña", password=True, can_reveal_password=True, width=300, visible=False)
+    ayuda_contrasena = ft.Text(
+        "Si Supabase la rechaza por sencilla, prueba con 8 o más caracteres y combina letras y números.",
+        size=12,
+        color="#555555",
+        text_align=ft.TextAlign.CENTER,
+        visible=False,
+    )
     resultado_texto = ft.Text("", size=14)
     spinner_reconexion = ft.Container(
         visible=False,
@@ -100,6 +107,7 @@ def recuperar_view(page: ft.Page, go_to_menu):
         controles_verificacion.visible = False
         nueva_contraseña_field.visible = True
         confirmar_contraseña_field.visible = True
+        ayuda_contrasena.visible = True
         btn_guardar_contrasena.visible = True
         mostrar_resultado("✅ Código validado. Crea una nueva contraseña para iniciar sesión. 😊", "green")
         page.update()
@@ -231,6 +239,7 @@ def recuperar_view(page: ft.Page, go_to_menu):
                 controles_verificacion,
                 nueva_contraseña_field,
                 confirmar_contraseña_field,
+                ayuda_contrasena,
                 btn_guardar_contrasena,
                 resultado_texto,
                 ft.ElevatedButton("↩️ Volver al Login", on_click=volver_login),

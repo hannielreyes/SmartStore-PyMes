@@ -101,7 +101,10 @@ Deno.serve(async (request: Request) => {
     );
     if (updateError) {
       console.error("No se pudo actualizar la contraseña de Auth:", updateError.message);
-      return respond(400, { error: "Supabase no pudo actualizar la contraseña." });
+      return respond(200, {
+        ok: false,
+        error: "Supabase rechazó esa contraseña por ser demasiado sencilla o corta. Prueba con 8 o más caracteres y combina letras y números.",
+      });
     }
 
     return respond(200, { ok: true });

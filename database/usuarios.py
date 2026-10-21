@@ -305,12 +305,24 @@ def establecer_contraseña_auth(nueva_contraseña):
             datos={"password": nueva_contraseña},
         )
         return True
-    except Exception as exc:
+    except RuntimeError as exc:
         detalle = str(exc)
         if "same_password" in detalle:
             return True
-        print(f"[Supabase Auth] Error al establecer contraseña: {exc}")
-        return False
+        detalle_minuscula = detalle.lower()
+        if any(indicador in detalle_minuscula for indicador in (
+            "weak_password",
+            "password is too weak",
+            "password is too short",
+            "password should",
+            "password must",
+            "password needs",
+        )):
+            raise RuntimeError(
+                "Supabase rechazó esa contraseña por ser demasiado sencilla o corta. "
+                "Prueba con 8 o más caracteres y combina letras y números."
+            ) from exc
+        raise RuntimeError(f"No se pudo actualizar la contraseña en Supabase Auth: {detalle}") from exc
 
 
 def solicitar_codigo_recuperacion_auth(correo):
@@ -386,7 +398,11 @@ def cambiar_contrasena_con_codigo_sesion_auth(correo, codigo, nueva_contrasena):
             "password": nueva_contrasena,
         },
     )
-    return bool(isinstance(respuesta, dict) and respuesta.get("ok"))
+    if isinstance(respuesta, dict) and respuesta.get("ok"):
+        return True
+    if isinstance(respuesta, dict) and respuesta.get("error"):
+        raise RuntimeError(str(respuesta["error"]))
+    return False
 
 
 

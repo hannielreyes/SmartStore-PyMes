@@ -144,6 +144,8 @@ def cancelar_reservas_vencidas():
             return int(supabase_rpc("cancelar_reservas_vencidas_rpc") or 0)
         except Exception as exc:
             _marcar_supabase_caido(f"Error al cancelar reservas remotas vencidas: {exc}")
+            if "42703" in str(exc) or "column" in str(exc).lower() and "does not exist" in str(exc).lower():
+                return 0
     conn = get_db_connection()
     conn.isolation_level = None
     cursor = conn.cursor()
@@ -178,7 +180,7 @@ def obtener_reservas_por_tienda(tienda_id):
     if _supabase_activo():
         filas = _supabase_lista(
             "reservas",
-            f"?select=id,productos(nombre,precio_cordobas),cantidad,usuarios(nombre),fecha,estado&tienda_id=eq.{tienda_id}&estado=in.(Reservado,Pagado,Preparando,Listo para entregar)&order=fecha.asc",
+            f"?select=id,productos(nombre,precio_cordobas),cantidad,usuarios(nombre),fecha,estado&tienda_id=eq.{tienda_id}&estado=in.(Pagado,Preparando,Listo%20para%20entregar)&order=fecha.asc",
         )
         return [
             ReservaTienda(fila["id"], fila.get("productos", {}).get("nombre"), fila["cantidad"],
@@ -327,11 +329,16 @@ def canjear_codigo_retiro(tienda_id, usuario_id, codigo):
     if not codigo:
         return False, "Ingresa el código que muestra el cliente."
     if _supabase_activo():
-        resultado = supabase_rpc(
-            "canjear_codigo_retiro_rpc",
-            {"p_tienda_id": tienda_id, "p_codigo": codigo},
-        ) or {}
-        return bool(resultado.get("ok")), resultado.get("message", "No se pudo validar el código.")
+        try:
+            resultado = supabase_rpc(
+                "canjear_codigo_retiro_rpc",
+                {"p_tienda_id": tienda_id, "p_codigo": codigo},
+            ) or {}
+            return bool(resultado.get("ok")), resultado.get("message", "No se pudo validar el código.")
+        except Exception as exc:
+            if "42703" in str(exc) or "function" in str(exc).lower() and "does not exist" in str(exc).lower():
+                return False, "Falta ejecutar la migración de retiro en Supabase antes de validar códigos."
+            return False, "No se pudo conectar con Supabase para validar el código."
     conn = get_db_connection()
     conn.isolation_level = None
     cursor = conn.cursor()
