@@ -4,6 +4,7 @@ from views.reservar import reservar_view
 from views.top_productos import top_productos_view
 from services.cola_tareas import encolar_busqueda_sin_resultado
 from services.busqueda_lineal import buscar_productos_linealmente
+from database.models import Producto, Tienda
 import os
 from utils import (
     mostrar_snackbar,
@@ -133,7 +134,10 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
     # El buscador es un escaparate global; el inventario privado se muestra en Inventario.
     error_carga_productos = False
     try:
-        productos_aleatorios = db.obtener_productos_aleatorios(limit=5)
+        productos_aleatorios = [
+            Producto.desde_fila(fila)
+            for fila in db.obtener_productos_aleatorios(limit=5)
+        ]
     except RuntimeError:
         productos_aleatorios = []
         error_carga_productos = True
@@ -143,8 +147,10 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
             color="orange",
         )
 
-    tiendas_usuario = db.obtener_tiendas_usuario(usuario["id"])
-    ids_tiendas_usuario = {tienda[0] for tienda in tiendas_usuario}
+    tiendas_usuario = [
+        Tienda.desde_fila(fila) for fila in db.obtener_tiendas_usuario(usuario["id"])
+    ]
+    ids_tiendas_usuario = {tienda.id for tienda in tiendas_usuario}
 
     def iniciar_reserva(id_producto, nombre_producto, cantidad, tienda_id):
         # ACCIÓN: inicia la reserva y confirma si el producto pertenece al usuario.
@@ -203,25 +209,26 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
         )
     else:
         for p in productos_aleatorios:
-            pid = p[0]
-            nombre = p[1]
-            precio_c = float(p[4]) if p[4] else 0
-            precio_d = float(p[5]) if p[5] else 0
-            cantidad = int(p[6]) if p[6] else 0
-            imagen = p[8] if len(p) > 8 else None
-            imagen_2 = p[9] if len(p) > 9 else None
-            tienda_producto = db.obtener_tienda_por_id(p[7]) if p[7] else None
-            whatsapp_aleatorio = tienda_producto[2] if tienda_producto else None
-            logo_tienda = tienda_producto[7] if tienda_producto and len(tienda_producto) > 7 else None
-            marca_aleatoria = p[2] or "No indicada"
-            talla_aleatoria = p[3] or "No indicada"
-            categoria_aleatoria = p[10] if len(p) > 10 and p[10] else "General"
-            descripcion_aleatoria = p[11] if len(p) > 11 and p[11] else "Sin descripción"
-            estado_aleatorio = p[12] if len(p) > 12 and p[12] else "Nuevo"
-            etiquetas_aleatorias = p[13] if len(p) > 13 and p[13] else "Sin etiquetas"
-            color_aleatorio = p[15] if len(p) > 15 and p[15] else "No indicado"
-            material_aleatorio = p[16] if len(p) > 16 and p[16] else "No indicado"
-            garantia_aleatoria = _normalizar_texto(p[17] if len(p) > 17 else None) or _normalizar_texto(p[18] if len(p) > 18 else None) or "No indicada"
+            pid = p.id
+            nombre = p.nombre
+            precio_c = float(p.precio_cordobas or 0)
+            precio_d = float(p.precio_dolares or 0)
+            cantidad = int(p.stock or 0)
+            imagen = p.imagen
+            imagen_2 = p.imagen_2
+            fila_tienda = db.obtener_tienda_por_id(p.tienda_id) if p.tienda_id else None
+            tienda_producto = Tienda.desde_fila(fila_tienda) if fila_tienda else None
+            whatsapp_aleatorio = tienda_producto.whatsapp if tienda_producto else None
+            logo_tienda = tienda_producto.imagen if tienda_producto else None
+            marca_aleatoria = p.marca or "No indicada"
+            talla_aleatoria = p.talla or "No indicada"
+            categoria_aleatoria = p.categoria or "General"
+            descripcion_aleatoria = p.descripcion or "Sin descripción"
+            estado_aleatorio = p.estado_producto or "Nuevo"
+            etiquetas_aleatorias = p.etiquetas or "Sin etiquetas"
+            color_aleatorio = p.color_principal or "No indicado"
+            material_aleatorio = p.material or "No indicado"
+            garantia_aleatoria = _normalizar_texto(p.garantia) or _normalizar_texto(p.especificacion) or "No indicada"
 
             def abrir_whatsapp_aleatorio(e, numero_whatsapp=whatsapp_aleatorio, nombre_producto=nombre):
                 try:
@@ -257,8 +264,8 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
                     ft.Text(f"Etiquetas: {etiquetas_aleatorias}", size=11, color="#555555"),
                     ft.Text(f"Descripción: {descripcion_aleatoria}", size=11, color="#555555"),
                     ft.Text(f"Garantía / especificación: {garantia_aleatoria}", size=11, color="#555555"),
-                    ft.Text(f"Tienda: {tienda_producto[1] if tienda_producto else 'Sin tienda'}", size=11, color="#555555"),
-                    ft.Text(f"Dirección: {tienda_producto[5] if tienda_producto and len(tienda_producto) > 5 else 'No indicada'}", size=11, color="#555555"),
+                    ft.Text(f"Tienda: {tienda_producto.nombre if tienda_producto else 'Sin tienda'}", size=11, color="#555555"),
+                    ft.Text(f"Dirección: {tienda_producto.direccion if tienda_producto else 'No indicada'}", size=11, color="#555555"),
                 ],
                 spacing=3,
                 visible=False,
@@ -288,7 +295,7 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
                         [
                             ft.ElevatedButton(
                                 "Reservar",
-                                on_click=lambda e, id_p=pid, nom=nombre, cant=cantidad, tid=p[7]: iniciar_reserva(id_p, nom, cant, tid),
+                                on_click=lambda e, id_p=pid, nom=nombre, cant=cantidad, tid=p.tienda_id: iniciar_reserva(id_p, nom, cant, tid),
                                 width=108,
                             ),
                             ft.Container(
@@ -344,8 +351,9 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
             return
 
         try:
-            productos = db.obtener_productos_por_nombre(busqueda)
-            productos = buscar_productos_linealmente(productos, busqueda)
+            filas_producto = db.obtener_productos_por_nombre(busqueda)
+            lista_productos = [Producto.desde_fila(fila) for fila in filas_producto]
+            productos = buscar_productos_linealmente(lista_productos, busqueda)
         except RuntimeError:
             resultados.controls.append(
                 ft.Container(
@@ -397,31 +405,32 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
 
         for p in productos:
             try:
-                id_producto = p[0]
-                nombre = p[1]
-                precio_c = float(p[4]) if p[4] else 0
-                precio_d = float(p[5]) if p[5] else 0
-                cantidad = int(p[6]) if p[6] else 0
-                tienda_id = p[7]
+                id_producto = p.id
+                nombre = p.nombre
+                precio_c = float(p.precio_cordobas) if p.precio_cordobas else 0
+                precio_d = float(p.precio_dolares) if p.precio_dolares else 0
+                cantidad = int(p.stock) if p.stock else 0
+                tienda_id = p.tienda_id
                 tienda_producto = db.obtener_tienda_por_id(tienda_id) if tienda_id else None
-                whatsapp_producto = tienda_producto[2] if tienda_producto else None
-                marca = p[2] or "No indicada"
-                talla = p[3] or "No indicada"
-                categoria_producto = p[10] if len(p) > 10 and p[10] else "General"
-                descripcion_producto = p[11] if len(p) > 11 and p[11] else ""
-                estado_producto = p[12] if len(p) > 12 and p[12] else "Nuevo"
-                etiquetas_producto = p[13] if len(p) > 13 and p[13] else ""
-                color_principal = p[15] if len(p) > 15 and p[15] else ""
-                material_producto = p[16] if len(p) > 16 and p[16] else ""
-                garantia_producto = p[17] if len(p) > 17 and p[17] else ""
-                especificacion_producto = p[18] if len(p) > 18 and p[18] else ""
+                whatsapp_producto = Tienda.desde_fila(tienda_producto).whatsapp if tienda_producto else None
+                marca = p.marca or "No indicada"
+                talla = p.talla or "No indicada"
+                categoria_producto = p.categoria or "General"
+                descripcion_producto = p.descripcion or ""
+                estado_producto = p.estado_producto or "Nuevo"
+                etiquetas_producto = p.etiquetas or ""
+                color_principal = p.color_principal or ""
+                material_producto = p.material or ""
+                garantia_producto = p.garantia or ""
+                especificacion_producto = p.especificacion or ""
                 garantia_mostrada = _normalizar_texto(garantia_producto) or _normalizar_texto(especificacion_producto) or "No indicada"
-                nombre_tienda_producto = tienda_producto[1] if tienda_producto else "Sin tienda"
-                direccion_producto = tienda_producto[5] if tienda_producto and len(tienda_producto) > 5 else "No indicada"
-                whatsapp_tienda_producto = tienda_producto[2] if tienda_producto and tienda_producto[2] else "No indicado"
-                logo_tienda = tienda_producto[7] if tienda_producto and len(tienda_producto) > 7 else None
-                imagen_producto = p[8] if len(p) > 8 else None
-                imagen_producto_2 = p[9] if len(p) > 9 else None
+                tienda_producto = Tienda.desde_fila(tienda_producto) if tienda_producto else None
+                nombre_tienda_producto = tienda_producto.nombre if tienda_producto else "Sin tienda"
+                direccion_producto = tienda_producto.direccion if tienda_producto else "No indicada"
+                whatsapp_tienda_producto = tienda_producto.whatsapp if tienda_producto and tienda_producto.whatsapp else "No indicado"
+                logo_tienda = tienda_producto.imagen if tienda_producto else None
+                imagen_producto = p.imagen
+                imagen_producto_2 = p.imagen_2
 
                 def abrir_whatsapp_producto(e, numero_whatsapp=whatsapp_producto, nombre_producto=nombre):
                     try:

@@ -1,15 +1,16 @@
-"""Estado de datos de la sesión actual y precarga desde Supabase."""
+﻿"""Estado de datos de la sesión actual y precarga desde Supabase."""
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import database as db
+from database.models import AlertaInventario
 
 
 def cargar_contexto_usuario(usuario_id):
     """Carga el contexto inicial sin bloquear el hilo de interfaz de Flet."""
     tiendas = db.obtener_tiendas_usuario(usuario_id)
-    tienda_ids = [tienda[0] for tienda in tiendas]
+    tienda_ids = [tienda.id for tienda in tiendas]
 
     def cargar_productos():
         return db.obtener_productos_usuario(usuario_id)
@@ -42,9 +43,9 @@ def cargar_contexto_usuario(usuario_id):
         reservas_usuario = futuros["reservas_usuario"].result()
 
     alertas = [
-        (producto[0], producto[1], int(producto[6] or 0))
+        AlertaInventario(producto.id, producto.nombre, int(producto.stock or 0))
         for producto in productos
-        if int(producto[6] or 0) == 1
+        if int(producto.stock or 0) == 1
     ][:20]
 
     return {
@@ -52,7 +53,7 @@ def cargar_contexto_usuario(usuario_id):
         "tiendas": tiendas,
         "tienda_actual": tiendas[0] if tiendas else None,
         "productos": productos,
-        "stock_total": sum(int(producto[6] or 0) for producto in productos),
+        "stock_total": sum(int(producto.stock or 0) for producto in productos),
         "alertas_inventario": alertas,
         "reservas": reservas,
         "reservas_usuario": reservas_usuario,

@@ -1,4 +1,4 @@
-# Módulo generado automáticamente a partir de `legado.py`.
+﻿# Módulo generado automáticamente a partir de `legado.py`.
 # No editar manualmente; los cambios deben hacerse en `legado.py` y volver a ejecutar este script.
 
 from .conexion import (
@@ -12,6 +12,7 @@ from .conexion import (
     _marcar_supabase_caido,
 )
 from supabase_config import supabase_rpc
+from .models import EntregaTienda, ReservaCliente, ReservaTienda
 import bcrypt, hashlib, secrets
 from datetime import datetime, timedelta
 from urllib.parse import quote
@@ -85,9 +86,9 @@ def obtener_reservas_usuario(usuario_id):
             f"?select=id,productos(nombre,precio_cordobas,precio_dolares),cantidad,estado,tienda_id&usuario_id=eq.{usuario_id}",
         )
         return [
-            (fila["id"], fila.get("productos", {}).get("nombre"), fila["cantidad"],
-             fila.get("productos", {}).get("precio_cordobas"), fila.get("productos", {}).get("precio_dolares"),
-             fila["estado"], fila["tienda_id"])
+            ReservaCliente(fila["id"], fila.get("productos", {}).get("nombre"), fila["cantidad"],
+                           fila.get("productos", {}).get("precio_cordobas"), fila.get("productos", {}).get("precio_dolares"),
+                           fila["estado"], fila["tienda_id"])
             for fila in filas
         ]
     conn = get_db_connection()
@@ -103,7 +104,7 @@ def obtener_reservas_usuario(usuario_id):
     )
     reservas = cursor.fetchall()
     conn.close()
-    return reservas
+    return [ReservaCliente.desde_fila(fila) for fila in reservas]
 
 
 def cancelar_reservas_vencidas():
@@ -150,9 +151,9 @@ def obtener_reservas_por_tienda(tienda_id):
             f"?select=id,productos(nombre,precio_cordobas),cantidad,usuarios(nombre),fecha,estado&tienda_id=eq.{tienda_id}&estado=in.(Reservado,Pagado,Preparando,Listo para entregar)&order=fecha.asc",
         )
         return [
-            (fila["id"], fila.get("productos", {}).get("nombre"), fila["cantidad"],
-             (fila.get("productos", {}).get("precio_cordobas") or 0) * fila["cantidad"],
-             fila.get("usuarios", {}).get("nombre"), fila.get("fecha"), fila.get("estado"))
+            ReservaTienda(fila["id"], fila.get("productos", {}).get("nombre"), fila["cantidad"],
+                          (fila.get("productos", {}).get("precio_cordobas") or 0) * fila["cantidad"],
+                          fila.get("usuarios", {}).get("nombre"), fila.get("fecha"), fila.get("estado"))
             for fila in filas
         ]
     conn = get_db_connection()
@@ -170,7 +171,7 @@ def obtener_reservas_por_tienda(tienda_id):
     )
     reservas = cursor.fetchall()
     conn.close()
-    return reservas
+    return [ReservaTienda.desde_fila(fila) for fila in reservas]
 
 
 def obtener_entregas_completadas_por_tienda(tienda_id):
@@ -180,9 +181,9 @@ def obtener_entregas_completadas_por_tienda(tienda_id):
             f"?select=id,productos(nombre,precio_cordobas),cantidad,usuarios(nombre),fecha_entrega&tienda_id=eq.{tienda_id}&estado=eq.Entregado&order=fecha_entrega.desc",
         )
         return [
-            (fila["id"], fila.get("productos", {}).get("nombre"), fila["cantidad"],
-             (fila.get("productos", {}).get("precio_cordobas") or 0) * fila["cantidad"],
-             fila.get("usuarios", {}).get("nombre"), fila.get("fecha_entrega"))
+            EntregaTienda(fila["id"], fila.get("productos", {}).get("nombre"), fila["cantidad"],
+                          (fila.get("productos", {}).get("precio_cordobas") or 0) * fila["cantidad"],
+                          fila.get("usuarios", {}).get("nombre"), fila.get("fecha_entrega"))
             for fila in filas
         ]
     conn = get_db_connection()
@@ -200,7 +201,7 @@ def obtener_entregas_completadas_por_tienda(tienda_id):
     )
     entregas = cursor.fetchall()
     conn.close()
-    return entregas
+    return [EntregaTienda.desde_fila(fila) for fila in entregas]
 
 
 def eliminar_reserva(reserva_id):

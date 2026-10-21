@@ -1,4 +1,4 @@
-import flet as ft
+﻿import flet as ft
 import database as db
 from utils import (
     abrir_selector_imagen,
@@ -131,7 +131,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
     tienda = contexto.get("tienda_actual")
     if tienda is None:
         tienda = db.obtener_tienda_usuario(usuario["id"])
-    tasa = tienda[3] if tienda else 36.5
+    tasa = tienda.tasa_cambio if tienda else 36.5
     tasa_calculadora = tasa
     tasa_texto = ft.Text(f"Tasa de cambio actual: C${tasa} = $1", size=12, color="#555555")
     titulo_formulario = ft.Text("Registrar Producto", size=28, weight=ft.FontWeight.BOLD, color="#040D4A")
@@ -582,8 +582,8 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
         for t in tiendas_usuario:
             botones_tiendas.append(
                 ft.ElevatedButton(
-                    f"🏪 {t[1]}",
-                    on_click=hacer_seleccion(t[0]),
+                    f"🏪 {t.nombre}",
+                    on_click=hacer_seleccion(t.id),
                     bgcolor="#040D4A",
                     color="white",
                     width=250,
@@ -622,7 +622,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
                     resultado_texto.color = "red"
                     page.update()
                     return
-                tasa_actual = tienda[3] if tienda else 36.5
+                tasa_actual = tienda.tasa_cambio if tienda else 36.5
                 precio_dolares = round(precio / tasa_actual, 2)
                 marca = marca_input.value.strip() if marca_input.value else ""
                 talla = talla_input.value.strip() if talla_input.value else ""

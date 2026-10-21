@@ -1,4 +1,4 @@
-# Módulo generado automáticamente a partir de `legado.py`.
+﻿# Módulo generado automáticamente a partir de `legado.py`.
 # No editar manualmente; los cambios deben hacerse en `legado.py` y volver a ejecutar este script.
 
 from .conexion import (
@@ -13,6 +13,7 @@ from .conexion import (
 import bcrypt, hashlib, secrets
 from datetime import datetime, timedelta
 from urllib.parse import quote
+from .models import PerfilUsuario, SesionAutenticada, UsuarioRecuperacion, UsuarioSesion
 from supabase_config import (
     supabase_request,
     supabase_auth_request,
@@ -38,7 +39,7 @@ def obtener_usuario(correo, contraseña):
             )
         except (TypeError, ValueError):
             return None
-        return (usuario["id"], usuario["nombre"], usuario["correo"]) if valido else None
+        return UsuarioSesion(usuario["id"], usuario["nombre"], usuario["correo"]) if valido else None
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -56,7 +57,7 @@ def obtener_usuario(correo, contraseña):
         )
     except (TypeError, ValueError):
         return None
-    return (fila[0], fila[1], fila[2]) if valido else None
+    return UsuarioSesion(fila[0], fila[1], fila[2]) if valido else None
 
 
 
@@ -66,7 +67,7 @@ def obtener_usuario_por_id(usuario_id):
         usuario = _supabase_unico(
             "usuarios", f"?select=id,nombre,correo,telefono,fecha_nacimiento,imagen,auth_user_id&id=eq.{usuario_id}&limit=1"
         )
-        return tuple(usuario.get(campo) for campo in ("id", "nombre", "correo", "telefono", "fecha_nacimiento", "imagen", "auth_user_id")) if usuario else None
+        return PerfilUsuario(*(usuario.get(campo) for campo in ("id", "nombre", "correo", "telefono", "fecha_nacimiento", "imagen", "auth_user_id"))) if usuario else None
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -75,7 +76,7 @@ def obtener_usuario_por_id(usuario_id):
     )
     usuario = cursor.fetchone()
     conn.close()
-    return usuario
+    return PerfilUsuario(*usuario) if usuario else None
 
 
 
@@ -245,7 +246,11 @@ def iniciar_sesion_auth(correo, contraseña):
         if not usuario:
             limpiar_token_auth()
             return None
-        return access_token, obtener_refresh_token_auth(), (usuario["id"], usuario["nombre"], usuario["correo"])
+        return SesionAutenticada(
+            access_token,
+            obtener_refresh_token_auth(),
+            UsuarioSesion(usuario["id"], usuario["nombre"], usuario["correo"]),
+        )
     except Exception:
         limpiar_token_auth()
         return None
@@ -367,7 +372,7 @@ def obtener_telefono_por_correo(correo):
 def obtener_usuario_por_correo(correo):
     if _supabase_activo():
         usuario = _supabase_unico("usuarios", f"?select=id,nombre,correo,telefono,fecha_nacimiento&correo=eq.{quote(str(correo), safe='')}&limit=1")
-        return tuple(usuario.get(campo) for campo in ("id", "nombre", "correo", "telefono", "fecha_nacimiento")) if usuario else None
+        return UsuarioRecuperacion(*(usuario.get(campo) for campo in ("id", "nombre", "correo", "telefono", "fecha_nacimiento"))) if usuario else None
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -376,7 +381,7 @@ def obtener_usuario_por_correo(correo):
     )
     resultado = cursor.fetchone()
     conn.close()
-    return resultado
+    return UsuarioRecuperacion(*resultado) if resultado else None
 
 
 
@@ -409,7 +414,7 @@ def obtener_usuario_por_telefono(telefono):
         for valor in valores_unicos:
             usuario = _supabase_unico("usuarios", f"?select=id,nombre,correo,telefono,fecha_nacimiento,contraseña&telefono=eq.{quote(valor, safe='')}&limit=1")
             if usuario:
-                return tuple(usuario.get(campo) for campo in ("id", "nombre", "correo", "telefono", "fecha_nacimiento", "contraseña"))
+                return UsuarioRecuperacion(usuario.get("id"), usuario.get("nombre"), usuario.get("correo"), usuario.get("telefono"), usuario.get("fecha_nacimiento"), usuario.get("contraseña"))
         return None
 
     conn = get_db_connection()
@@ -426,7 +431,7 @@ def obtener_usuario_por_telefono(telefono):
     )
     resultado = cursor.fetchone()
     conn.close()
-    return resultado
+    return UsuarioRecuperacion(*resultado) if resultado else None
 
 
 

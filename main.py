@@ -1,4 +1,4 @@
- # EL main.py sirve para ejecutar todo el el programa es el que llama a todas las funciones para que se muetren en pantalla es el corazon y el motor de la es el que despierta a la computadora
+﻿ # EL main.py sirve para ejecutar todo el el programa es el que llama a todas las funciones para que se muetren en pantalla es el corazon y el motor de la es el que despierta a la computadora
 import asyncio
 import flet as ft 
 from utils import comprobar_actualizacion, mostrar_snackbar, tema_smartstore
@@ -98,7 +98,7 @@ def main(page: ft.Page):
         if correo and token:
             usuario = db.obtener_usuario_por_token(token)
             if usuario:
-                usuario_dict = {"id": usuario[0], "nombre": usuario[1], "correo": usuario[2]}
+                usuario_dict = {"id": usuario.id, "nombre": usuario.nombre, "correo": usuario.correo}
                 go_to_menu(usuario_dict)
                 return
         login_view(page, usuario_actual, go_to_menu)
@@ -179,7 +179,7 @@ def main(page: ft.Page):
         if tienda_id is None:
             tiendas = db.obtener_tiendas_usuario(usuario_actual['id'])
             if tiendas:
-                tienda_id = tiendas[0][0]
+                tienda_id = tiendas[0].id
             else:
                 mostrar_snackbar(page, "❌ Aún no tienes tiendas creadas. Crea una para continuar 😊")
                 return
@@ -237,7 +237,7 @@ def main(page: ft.Page):
             usuario = await asyncio.to_thread(db.obtener_usuario_por_token, token)
             if not usuario:
                 return
-            usuario_dict = {"id": usuario[0], "nombre": usuario[1], "correo": usuario[2]}
+            usuario_dict = {"id": usuario.id, "nombre": usuario.nombre, "correo": usuario.correo}
             contexto = await asyncio.to_thread(cargar_contexto_usuario, usuario_dict["id"])
             page._smartstore_start_user = usuario_dict
             page._smartstore_context = contexto

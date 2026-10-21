@@ -1,6 +1,7 @@
-# Módulo generado automáticamente a partir de `legado.py`.
+﻿# Módulo generado automáticamente a partir de `legado.py`.
 # No editar manualmente; los cambios deben hacerse en `legado.py` y volver a ejecutar este script.
 
+from .models import UsuarioSesion
 from .conexion import (
     get_db_connection,
     _supabase_activo,
@@ -91,14 +92,14 @@ def crear_token_sesion(correo, contraseña=None, usuario_id=None):
     if _supabase_activo():
         _supabase_insertar(
             "sesiones_dispositivo",
-            {"usuario_id": usuario[0], "token_hash": token_hash, "revocado": False},
+            {"usuario_id": usuario.id, "token_hash": token_hash, "revocado": False},
         )
     else:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
             "INSERT INTO sesiones_dispositivo (usuario_id, token_hash) VALUES (?, ?)",
-            (usuario[0], token_hash),
+            (usuario.id, token_hash),
         )
         conn.commit()
         conn.close()
@@ -120,7 +121,7 @@ def obtener_usuario_por_token(token):
             "usuarios",
             f"?select=id,nombre,correo&id=eq.{sesion['usuario_id']}&limit=1",
         )
-        return (usuario["id"], usuario["nombre"], usuario["correo"]) if usuario else None
+        return UsuarioSesion(usuario["id"], usuario["nombre"], usuario["correo"]) if usuario else None
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -135,7 +136,7 @@ def obtener_usuario_por_token(token):
     )
     usuario = cursor.fetchone()
     conn.close()
-    return usuario
+    return UsuarioSesion(*usuario) if usuario else None
 
 
 def revocar_token_sesion(token):

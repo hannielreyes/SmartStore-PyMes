@@ -1,4 +1,4 @@
-import json
+﻿import json
 import base64
 import hashlib
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -109,7 +109,7 @@ def cargar_sesion(page):
                 if nuevo_refresh_token and nuevo_refresh_token != refresh_token:
                     datos["auth_refresh_token"] = nuevo_refresh_token
                     page.client_storage.set(SESION_KEY, datos)
-                return usuario[2], token
+                return usuario.correo, token
             borrar_sesion(page)
             return None, None
     except Exception:
@@ -128,7 +128,7 @@ def cargar_sesion(page):
                     datos["auth_refresh_token"] = nuevo_refresh_token
                     with open(SESION_FILE, "w", encoding="utf-8") as f:
                         json.dump(datos, f)
-                return usuario[2], token
+                return usuario.correo, token
             borrar_sesion(page)
             return None, None
     except Exception:
@@ -553,7 +553,7 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
                     if not usuario:
                         mostrar_mensaje("❌ No se pudo preparar tu perfil.")
                         return
-                    usuario_dict = {"id": usuario[0], "nombre": usuario[1], "correo": usuario[2]}
+                    usuario_dict = {"id": usuario.id, "nombre": usuario.nombre, "correo": usuario.correo}
                     mostrar_codigo_y_continuar(usuario_dict, correo, "")
                     return
                 if "confirma tu correo" in mensaje.lower():
@@ -575,7 +575,7 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
                     cambiar_vista(limpiar_credenciales=False)
                     return
 
-                usuario_dict = {"id": usuario[0], "nombre": usuario[1], "correo": usuario[2]}
+                usuario_dict = {"id": usuario.id, "nombre": usuario.nombre, "correo": usuario.correo}
                 mostrar_codigo_y_continuar(usuario_dict, correo, password)
         else:
             correo = correo_input.value.strip()
@@ -601,7 +601,7 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
             try:
                 if db._supabase_activo():
                     resultado_auth = db.iniciar_sesion_auth(correo, password)
-                    usuario = resultado_auth[2] if resultado_auth else None
+                    usuario = resultado_auth.usuario if resultado_auth else None
                 else:
                     usuario = db.obtener_usuario(correo, password)
             except RuntimeError:
@@ -610,7 +610,7 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
                 return
 
             if usuario:
-                usuario_dict = {"id": usuario[0], "nombre": usuario[1], "correo": usuario[2]}
+                usuario_dict = {"id": usuario.id, "nombre": usuario.nombre, "correo": usuario.correo}
                 mostrar_codigo_y_continuar(usuario_dict, correo, password)
             else:
                 mostrar_mensaje("❌ El correo o la contraseña no coinciden 😅 Revisa los datos y prueba otra vez, aquí estamos para ayudarte 😊")

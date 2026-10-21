@@ -1,5 +1,6 @@
-"""Consultas de ventas y datos agregados para estadísticas."""
+﻿"""Consultas de ventas y datos agregados para estadísticas."""
 
+from .models import VentaDiaria
 from .conexion import (
     _supabase_activo,
     _supabase_lista,
@@ -18,7 +19,7 @@ def obtener_ventas_semana(usuario_id):
         for fila in filas:
             fecha = (fila.get("fecha") or "")[:10]
             ventas[fecha] = ventas.get(fecha, 0) + (fila.get("productos", {}).get("precio_cordobas") or 0) * fila.get("cantidad", 0)
-        return list(ventas.items())
+        return [VentaDiaria(fecha, total) for fecha, total in ventas.items()]
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -36,4 +37,4 @@ def obtener_ventas_semana(usuario_id):
     )
     ventas = cursor.fetchall()
     conn.close()
-    return ventas
+    return [VentaDiaria.desde_fila(fila) for fila in ventas]

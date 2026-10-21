@@ -1,6 +1,7 @@
 import flet as ft
 from utils import mostrar_snackbar, configurar_retroceso, imagen_disponible, boton_glossy
 import database as db
+from database.models import ProductoReserva, Tienda
 from datetime import datetime, timedelta
 import os
 
@@ -17,26 +18,21 @@ def reservar_view(page: ft.Page, usuario, producto_id, producto_nombre, producto
     )
 
     # Obtener el precio del producto
-    productos = [db.obtener_producto_por_id(producto_id)]
-    precio_c = 0.0
-    tienda_id = None
-    marca = "No indicada"
-    talla = "No indicada"
+    fila_producto = db.obtener_producto_por_id(producto_id)
+    producto = ProductoReserva.desde_fila(fila_producto) if fila_producto else None
+    precio_c = float(producto.precio_cordobas or 0) if producto else 0.0
+    tienda_id = producto.tienda_id if producto else None
+    marca = (producto.marca or "No indicada") if producto else "No indicada"
+    talla = (producto.talla or "No indicada") if producto else "No indicada"
     direccion = "No indicada"
     nombre_tienda = "Tienda no identificada"
     logo_tienda = None
-    for p in productos:
-        if p and p[0] == producto_id:
-            precio_c = float(p[4])  # precio_cordobas
-            tienda_id = p[7]  # tienda_id
-            marca = p[2] or marca
-            talla = p[3] or talla
-            break
-    tienda = db.obtener_tienda_por_id(tienda_id) if tienda_id else None
+    fila_tienda = db.obtener_tienda_por_id(tienda_id) if tienda_id else None
+    tienda = Tienda.desde_fila(fila_tienda) if fila_tienda else None
     if tienda:
-        nombre_tienda = tienda[1] or nombre_tienda
-        direccion = tienda[5] or direccion
-        logo_tienda = tienda[7] if len(tienda) > 7 else None
+        nombre_tienda = tienda.nombre or nombre_tienda
+        direccion = tienda.direccion or direccion
+        logo_tienda = tienda.imagen
 
     logo_control = ft.Container(width=64, height=64, bgcolor="#F3F3F3", border_radius=12)
     if logo_tienda:

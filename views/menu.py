@@ -1,7 +1,8 @@
-import asyncio
+﻿import asyncio
 import random
 import flet as ft
 import database as db
+from database.models import AlertaInventario, Producto, ReservaTienda, Tienda
 from utils import configurar_retroceso, mostrar_snackbar, notificaciones_activas, tema_smartstore
 
 def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_to_carrito, go_to_tienda, go_to_perfil, go_to_inventario, go_to_ajustes_adicionales, go_to_control_reservas, contexto=None):
@@ -40,21 +41,33 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
     tiendas = contexto.get("tiendas")
     if tiendas is None:
         tiendas = db.obtener_tiendas_usuario(usuario['id'])
+    tiendas = [
+        fila if isinstance(fila, Tienda) else Tienda.desde_fila(fila)
+        for fila in tiendas
+    ]
     stock_total = contexto.get("stock_total")
     if stock_total is None:
         stock_total = db.obtener_stock_total_usuario(usuario['id'])
     alertas_inventario = contexto.get("alertas_inventario")
     if alertas_inventario is None:
         alertas_inventario = db.obtener_alertas_inventario(usuario['id'])
+    alertas_inventario = [
+        fila if isinstance(fila, AlertaInventario) else AlertaInventario.desde_fila(fila)
+        for fila in alertas_inventario
+    ]
     avisos_activos = notificaciones_activas(page)
     reservas_por_entregar = contexto.get("reservas")
     if reservas_por_entregar is None:
         reservas_por_entregar = []
         for tienda in tiendas:
             try:
-                reservas_por_entregar.extend(db.obtener_reservas_por_tienda(tienda[0]))
+                reservas_por_entregar.extend(db.obtener_reservas_por_tienda(tienda.id))
             except Exception:
                 continue
+    reservas_por_entregar = [
+        fila if isinstance(fila, ReservaTienda) else ReservaTienda.desde_fila(fila)
+        for fila in reservas_por_entregar
+    ]
 
     def abrir_inventario(e):
         # ACCIÓN: abre el inventario del usuario.
@@ -174,8 +187,8 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
     # BOTONES DINÁMICOS: crea un botón por cada tienda del usuario.
     tiendas_botones = []
     for t in tiendas:
-        tienda_id = t[0]
-        tienda_nombre = t[1]
+        tienda_id = t.id
+        tienda_nombre = t.nombre or "Tienda"
         
         tiendas_botones.append(
             ft.Row(
@@ -252,10 +265,14 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
         )
     except Exception:
         pass
+    productos_contexto = [
+        fila if isinstance(fila, Producto) else Producto.desde_fila(fila)
+        for fila in contexto.get("productos", [])
+    ]
     nombres_productos = {
-        str(producto[1]).strip().lower()
-        for producto in contexto.get("productos", [])
-        if len(producto) > 1 and producto[1]
+        str(producto.nombre).strip().lower()
+        for producto in productos_contexto
+        if producto.nombre
     }
     busquedas_sin_resultado = [
         busqueda for busqueda in busquedas_sin_resultado
@@ -339,12 +356,12 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
                 if tipo == "inventario":
                     contenido_aviso.controls.extend(
                         ft.Text(
-                            f"{nombre}: quedan {stock} unidades 😬",
+                            f"{alerta.nombre}: quedan {alerta.stock} unidades 😬",
                             size=13,
                             color="#C62828",
                             text_align=ft.TextAlign.CENTER,
                         )
-                        for _, nombre, stock in alertas_inventario[:5]
+                        for alerta in alertas_inventario[:5]
                     )
 
             def ocultar_aviso(e):

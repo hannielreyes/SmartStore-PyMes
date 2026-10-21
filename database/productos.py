@@ -1,4 +1,4 @@
-# Módulo generado automáticamente a partir de `legado.py`.
+﻿# Módulo generado automáticamente a partir de `legado.py`.
 # No editar manualmente; los cambios deben hacerse en `legado.py` y volver a ejecutar este script.
 
 from .conexion import (
@@ -11,6 +11,14 @@ from .conexion import (
     _supabase_borrar,
 )
 from .resenas import obtener_promedio_calificacion
+from .models import (
+    AlertaInventario,
+    Producto,
+    ProductoBasico,
+    ProductoDestacado,
+    ProductoReserva,
+    ProductoTienda,
+)
 import bcrypt, hashlib, secrets
 from datetime import datetime, timedelta
 from urllib.parse import quote
@@ -28,7 +36,7 @@ def obtener_productos_aleatorios(limit=5, usuario_id=None):
                 "productos",
                 f"?select=id,nombre,marca,talla,precio_cordobas,precio_dolares,stock,tienda_id,imagen,imagen_2,categoria,descripcion,estado_producto,etiquetas,estilo,color_principal,material,garantia,especificacion&limit={int(limit)}",
             )
-        return [tuple(fila.get(campo) for campo in ("id", "nombre", "marca", "talla", "precio_cordobas", "precio_dolares", "stock", "tienda_id", "imagen", "imagen_2", "categoria", "descripcion", "estado_producto", "etiquetas", "estilo", "color_principal", "material", "garantia", "especificacion")) for fila in filas]
+        return [Producto.desde_fila(tuple(fila.get(campo) for campo in ("id", "nombre", "marca", "talla", "precio_cordobas", "precio_dolares", "stock", "tienda_id", "imagen", "imagen_2", "categoria", "descripcion", "estado_producto", "etiquetas", "estilo", "color_principal", "material", "garantia", "especificacion"))) for fila in filas]
     conn = get_db_connection()
     cursor = conn.cursor()
     if usuario_id is not None:
@@ -51,7 +59,7 @@ def obtener_productos_aleatorios(limit=5, usuario_id=None):
         )
     productos = cursor.fetchall()
     conn.close()
-    return productos
+    return [Producto.desde_fila(fila) for fila in productos]
 
 
 
@@ -69,7 +77,7 @@ def obtener_top_productos(limit=10, min_compras=3):
                 continue
             producto = _supabase_unico("productos", f"?select=id,nombre,precio_cordobas,precio_dolares,stock&id=eq.{producto_id}&limit=1")
             if producto:
-                resultados.append((producto["id"], producto["nombre"], producto.get("precio_cordobas"), producto.get("precio_dolares"), producto.get("stock"), compras, obtener_promedio_calificacion(producto_id)))
+                resultados.append(ProductoDestacado(producto["id"], producto["nombre"], producto.get("precio_cordobas"), producto.get("precio_dolares"), producto.get("stock"), compras, obtener_promedio_calificacion(producto_id)))
             if len(resultados) >= limit:
                 break
         return resultados
@@ -92,7 +100,7 @@ def obtener_top_productos(limit=10, min_compras=3):
     )
     rows = cursor.fetchall()
     conn.close()
-    return rows
+    return [ProductoDestacado.desde_fila(fila) for fila in rows]
 
 
 
@@ -204,7 +212,8 @@ def actualizar_producto(producto_id, usuario_id, nombre, marca, talla, precio_co
 
 def obtener_productos():
     if _supabase_activo():
-        return [tuple(fila.get(campo) for campo in ("id", "nombre", "marca", "talla", "precio_cordobas", "precio_dolares", "stock", "tienda_id", "imagen", "imagen_2")) for fila in _supabase_lista("productos", "?select=id,nombre,marca,talla,precio_cordobas,precio_dolares,stock,tienda_id,imagen,imagen_2")]
+        filas = _supabase_lista("productos", "?select=id,nombre,marca,talla,precio_cordobas,precio_dolares,stock,tienda_id,imagen,imagen_2")
+        return [ProductoBasico.desde_fila(tuple(fila.get(campo) for campo in ("id", "nombre", "marca", "talla", "precio_cordobas", "precio_dolares", "stock", "tienda_id", "imagen", "imagen_2"))) for fila in filas]
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -212,7 +221,7 @@ def obtener_productos():
     )
     productos = cursor.fetchall()
     conn.close()
-    return productos
+    return [ProductoBasico.desde_fila(fila) for fila in productos]
 
 
 
@@ -267,7 +276,7 @@ def obtener_oportunidades_productos(usuario_id, limite=20):
 def obtener_productos_usuario(usuario_id):
     if _supabase_activo():
         filas = _supabase_lista("productos", f"?select=id,nombre,marca,talla,precio_cordobas,precio_dolares,stock,tienda_id,imagen,imagen_2,categoria,descripcion,estado_producto,etiquetas,estilo,color_principal,material,garantia,especificacion,tiendas!inner(usuario_id)&tiendas.usuario_id=eq.{usuario_id}")
-        return [tuple(fila.get(campo) for campo in ("id", "nombre", "marca", "talla", "precio_cordobas", "precio_dolares", "stock", "tienda_id", "imagen", "imagen_2", "categoria", "descripcion", "estado_producto", "etiquetas", "estilo", "color_principal", "material", "garantia", "especificacion")) for fila in filas]
+        return [Producto.desde_fila(tuple(fila.get(campo) for campo in ("id", "nombre", "marca", "talla", "precio_cordobas", "precio_dolares", "stock", "tienda_id", "imagen", "imagen_2", "categoria", "descripcion", "estado_producto", "etiquetas", "estilo", "color_principal", "material", "garantia", "especificacion"))) for fila in filas]
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -283,7 +292,7 @@ def obtener_productos_usuario(usuario_id):
     )
     productos = cursor.fetchall()
     conn.close()
-    return productos
+    return [Producto.desde_fila(fila) for fila in productos]
 
 
 
@@ -291,7 +300,7 @@ def obtener_productos_usuario(usuario_id):
 def obtener_producto_por_id(producto_id):
     if _supabase_activo():
         fila = _supabase_unico("productos", f"?select=id,nombre,marca,talla,precio_cordobas,precio_dolares,stock,tienda_id,imagen,imagen_2,categoria,descripcion,estado_producto,etiquetas,estilo,color_principal,material,garantia,especificacion&id=eq.{producto_id}&limit=1")
-        return tuple(fila.get(campo) for campo in ("id", "nombre", "marca", "talla", "precio_cordobas", "precio_dolares", "stock", "tienda_id", "imagen", "imagen_2", "categoria", "descripcion", "estado_producto", "etiquetas", "estilo", "color_principal", "material", "garantia", "especificacion")) if fila else None
+        return ProductoReserva.desde_fila(tuple(fila.get(campo) for campo in ("id", "nombre", "marca", "talla", "precio_cordobas", "precio_dolares", "stock", "tienda_id"))) if fila else None
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -301,7 +310,7 @@ def obtener_producto_por_id(producto_id):
     )
     producto = cursor.fetchone()
     conn.close()
-    return producto
+    return ProductoReserva.desde_fila(producto) if producto else None
 
 
 
@@ -319,7 +328,7 @@ def obtener_productos_por_nombre(nombre_filtro, usuario_id=None):
                 "productos",
                 f"?select=id,nombre,marca,talla,precio_cordobas,precio_dolares,stock,tienda_id,imagen,imagen_2,categoria,descripcion,estado_producto,etiquetas,estilo,color_principal,material,garantia,especificacion&nombre=ilike.*{valor}*&limit=50",
             )
-        return [tuple(fila.get(campo) for campo in ("id", "nombre", "marca", "talla", "precio_cordobas", "precio_dolares", "stock", "tienda_id", "imagen", "imagen_2", "categoria", "descripcion", "estado_producto", "etiquetas", "estilo", "color_principal", "material", "garantia", "especificacion")) for fila in filas]
+        return [Producto.desde_fila(tuple(fila.get(campo) for campo in ("id", "nombre", "marca", "talla", "precio_cordobas", "precio_dolares", "stock", "tienda_id", "imagen", "imagen_2", "categoria", "descripcion", "estado_producto", "etiquetas", "estilo", "color_principal", "material", "garantia", "especificacion"))) for fila in filas]
     conn = get_db_connection()
     cursor = conn.cursor()
     if usuario_id is not None:
@@ -340,7 +349,7 @@ def obtener_productos_por_nombre(nombre_filtro, usuario_id=None):
         )
     productos = cursor.fetchall()
     conn.close()
-    return productos
+    return [Producto.desde_fila(fila) for fila in productos]
 
 
 
@@ -354,7 +363,7 @@ def obtener_productos_por_tienda(tienda_id):
     )
     productos = cursor.fetchall()
     conn.close()
-    return productos
+    return [ProductoTienda.desde_fila(fila) for fila in productos]
 
 
 
@@ -375,7 +384,7 @@ def obtener_stock_total():
 
 def obtener_stock_total_usuario(usuario_id):
     if _supabase_activo():
-        return sum(int(fila[6] or 0) for fila in obtener_productos_usuario(usuario_id))
+        return sum(int(fila.stock or 0) for fila in obtener_productos_usuario(usuario_id))
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -402,7 +411,7 @@ def obtener_alertas_inventario(usuario_id, limite_stock=1):
             f"?select=id,nombre,stock,tiendas!inner(usuario_id)&tiendas.usuario_id=eq.{usuario_id}&stock=eq.{int(limite_stock)}&order=nombre.asc&limit=20",
         )
         return [
-            (fila.get("id"), fila.get("nombre"), int(fila.get("stock") or 0))
+            AlertaInventario(fila.get("id"), fila.get("nombre"), int(fila.get("stock") or 0))
             for fila in filas
         ]
 
@@ -421,7 +430,7 @@ def obtener_alertas_inventario(usuario_id, limite_stock=1):
     )
     alertas = cursor.fetchall()
     conn.close()
-    return alertas
+    return [AlertaInventario.desde_fila(fila) for fila in alertas]
 
 def eliminar_producto(producto_id, usuario_id):
     if _supabase_activo():

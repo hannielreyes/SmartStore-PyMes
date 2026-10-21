@@ -1,6 +1,7 @@
 
 import flet as ft
 import database as db
+from database.models import Producto
 import os
 from utils import configurar_retroceso, mostrar_snackbar, imagen_disponible
 
@@ -128,14 +129,14 @@ def inventario_view(page: ft.Page, usuario, go_back):
 
     def mostrar_edicion(id_producto, producto):
         # DIÁLOGO: formulario para editar los datos y existencias del producto.
-        nombre_input = ft.TextField(label="Nombre del producto", value=str(producto[1] or ""), width=280)
-        marca_input = ft.TextField(label="Marca", value=str(producto[2] or ""), width=280)
-        talla_input = ft.TextField(label="Talla", value=str(producto[3] or ""), width=280)
-        precio_cordobas_input = ft.TextField(label="Precio en C$", value=str(producto[4] or ""), width=280)
-        precio_dolares_input = ft.TextField(label="Precio en dólares", value=str(producto[5] or ""), width=280)
+        nombre_input = ft.TextField(label="Nombre del producto", value=str(producto.nombre or ""), width=280)
+        marca_input = ft.TextField(label="Marca", value=str(producto.marca or ""), width=280)
+        talla_input = ft.TextField(label="Talla", value=str(producto.talla or ""), width=280)
+        precio_cordobas_input = ft.TextField(label="Precio en C$", value=str(producto.precio_cordobas or ""), width=280)
+        precio_dolares_input = ft.TextField(label="Precio en dólares", value=str(producto.precio_dolares or ""), width=280)
         stock_input = ft.TextField(
             label="Cantidad disponible",
-            value=str(producto[6] or 0),
+            value=str(producto.stock or 0),
             keyboard_type=ft.KeyboardType.NUMBER,
             width=280,
         )
@@ -220,15 +221,19 @@ def inventario_view(page: ft.Page, usuario, go_back):
             page.update()
             return
 
+        productos = [
+            fila if isinstance(fila, Producto) else Producto.desde_fila(fila)
+            for fila in productos
+        ]
         for p in productos:
-            id_p = p[0]
-            nombre = p[1]
-            marca = p[2]
-            talla = p[3]
-            precio_c = p[4]
-            precio_d = p[5]
-            stock = p[6]
-            tienda_id = p[7]
+            id_p = p.id
+            nombre = p.nombre
+            marca = p.marca
+            talla = p.talla
+            precio_c = p.precio_cordobas
+            precio_d = p.precio_dolares
+            stock = p.stock or 0
+            tienda_id = p.tienda_id
             color_stock = "#EFA520" if stock > 5 else "red"
 
             def hacer_confirmar(id_producto, nombre_producto, stock_producto):
@@ -322,8 +327,8 @@ def inventario_view(page: ft.Page, usuario, go_back):
             )
 
             # Prepare thumbnails with a clean, centered gallery layout
-            imagen_producto = p[8] if len(p) > 8 else None
-            imagen_producto_2 = p[9] if len(p) > 9 else None
+            imagen_producto = p.imagen
+            imagen_producto_2 = p.imagen_2
 
             def _crear_miniatura(src, ancho, alto):
                 if not src:

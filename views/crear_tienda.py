@@ -1,4 +1,4 @@
-import os
+﻿import os
 import asyncio
 import shutil
 from datetime import datetime
@@ -10,6 +10,7 @@ from utils import (
     configurar_retroceso,
 )
 import database as db
+from database.models import ProductoPendiente
 import flet_camera as fc
 import base64
 
@@ -128,7 +129,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
     especificacion_input = ft.TextField(label="Especificación extra", width=300, multiline=True, min_lines=2, max_lines=4)
 
     productos_layout = ft.Column(spacing=5)
-    productos_temp = []
+    productos_temp: list[ProductoPendiente] = []
     tienda_imagen_path = None
     tienda_imagen_data = None
     producto_imagen_path = None
@@ -519,23 +520,23 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
         garantia = garantia_input.value.strip() if garantia_input.value else ""
         especificacion = especificacion_input.value.strip() if especificacion_input.value else ""
 
-        productos_temp.append((
-            nombre,
-            marca_input.value,
-            talla_input.value,
-            precio,
-            precio / tasa,
-            cantidad,
-            producto_imagen_path,
-            categoria_input.value,
-            producto_imagen_2_path,
-            descripcion,
-            estado_producto,
-            etiquetas,
-            color_principal,
-            material,
-            garantia,
-            especificacion,
+        productos_temp.append(ProductoPendiente(
+            nombre=nombre,
+            marca=marca_input.value,
+            talla=talla_input.value,
+            precio_cordobas=precio,
+            precio_dolares=precio / tasa,
+            cantidad=cantidad,
+            imagen=producto_imagen_path,
+            categoria=categoria_input.value,
+            imagen_2=producto_imagen_2_path,
+            descripcion=descripcion,
+            estado_producto=estado_producto,
+            etiquetas=etiquetas,
+            color_principal=color_principal,
+            material=material,
+            garantia=garantia,
+            especificacion=especificacion,
         ))
         productos_layout.controls.append(ft.Container(content=ft.Text(f"{nombre} | {categoria_input.value} | {marca_input.value or '-'} | {talla_input.value or '-'} | C${precio:.2f} | x{cantidad}"), padding=5, bgcolor=ft.Colors.GREY_100, border_radius=10))
         nombre_prod_input.value = ""
@@ -613,23 +614,23 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
             material = material_input.value.strip() if material_input.value else ""
             garantia = garantia_input.value.strip() if garantia_input.value else ""
             especificacion = especificacion_input.value.strip() if especificacion_input.value else ""
-            productos_temp.append((
-                nombre_prod_input.value.strip(),
-                marca_input.value,
-                talla_input.value,
-                precio,
-                precio / tasa,
-                cantidad,
-                producto_imagen_path,
-                categoria_input.value,
-                producto_imagen_2_path,
-                descripcion,
-                estado_producto,
-                etiquetas,
-                color_principal,
-                material,
-                garantia,
-                especificacion,
+            productos_temp.append(ProductoPendiente(
+                nombre=nombre_prod_input.value.strip(),
+                marca=marca_input.value,
+                talla=talla_input.value,
+                precio_cordobas=precio,
+                precio_dolares=precio / tasa,
+                cantidad=cantidad,
+                imagen=producto_imagen_path,
+                categoria=categoria_input.value,
+                imagen_2=producto_imagen_2_path,
+                descripcion=descripcion,
+                estado_producto=estado_producto,
+                etiquetas=etiquetas,
+                color_principal=color_principal,
+                material=material,
+                garantia=garantia,
+                especificacion=especificacion,
             ))
 
         imagen_tienda_rel = None
@@ -646,24 +647,31 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
             return
 
         for prod in productos_temp:
-            imagen_prod_rel = None
-            imagen_prod_rel_2 = None
-            ruta_imagen_principal = prod[6] if len(prod) > 6 and prod[6] else (prod[8] if len(prod) > 8 else None)
-            if ruta_imagen_principal:
-                imagen_prod_rel = guardar_imagen_en_assets(ruta_imagen_principal, prefijo="producto")
-            if len(prod) > 6 and prod[6] and len(prod) > 8 and prod[8]:
-                imagen_prod_rel_2 = guardar_imagen_en_assets(prod[8], prefijo="producto_2")
-            descripcion = prod[9] if len(prod) > 9 else ""
-            estado_producto = prod[10] if len(prod) > 10 else "Nuevo"
-            etiquetas = prod[11] if len(prod) > 11 else ""
-            color_principal = prod[12] if len(prod) > 12 else ""
-            material = prod[13] if len(prod) > 13 else ""
-            garantia = prod[14] if len(prod) > 14 else ""
-            especificacion = prod[15] if len(prod) > 15 else ""
+            imagen_prod_rel = guardar_imagen_en_assets(prod.imagen, prefijo="producto") if prod.imagen else None
+            imagen_prod_rel_2 = (
+                guardar_imagen_en_assets(prod.imagen_2, prefijo="producto_2")
+                if prod.imagen and prod.imagen_2
+                else None
+            )
             db.registrar_producto(
-                prod[0], prod[1], prod[2], prod[3], prod[4], prod[5],
-                tienda_id, imagen_prod_rel, usuario["id"], prod[7] if len(prod) > 7 else "General", imagen_prod_rel_2,
-                descripcion, estado_producto, etiquetas, None, color_principal, material, garantia, especificacion,
+                prod.nombre,
+                prod.marca,
+                prod.talla,
+                prod.precio_cordobas,
+                prod.precio_dolares,
+                prod.cantidad,
+                tienda_id,
+                imagen=imagen_prod_rel,
+                usuario_id=usuario["id"],
+                categoria=prod.categoria or "General",
+                imagen_2=imagen_prod_rel_2,
+                descripcion=prod.descripcion,
+                estado_producto=prod.estado_producto,
+                etiquetas=prod.etiquetas,
+                color_principal=prod.color_principal,
+                material=prod.material,
+                garantia=prod.garantia,
+                especificacion=prod.especificacion,
             )
 
         mostrar_snackbar(page, "✅ ¡Tu tienda fue creada correctamente!")

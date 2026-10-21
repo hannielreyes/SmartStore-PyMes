@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+﻿from datetime import datetime, timedelta
 
 import flet as ft
 
@@ -76,7 +76,9 @@ def estadisticas_view(page: ft.Page, usuario, go_back):
 		image=ft.DecorationImage(src="fondo.png", fit="cover"),
 	)
 
-	ventas_por_fecha = dict(db.obtener_ventas_semana(usuario["id"]))
+	ventas_por_fecha = {
+		venta.fecha: venta.total for venta in db.obtener_ventas_semana(usuario["id"])
+	}
 	hoy = datetime.now().date()
 	inicio_semana = hoy - timedelta(days=(hoy.weekday() + 1) % 7)
 	dias = [inicio_semana + timedelta(days=posicion) for posicion in range(7)]

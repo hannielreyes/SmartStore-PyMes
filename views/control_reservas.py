@@ -1,6 +1,6 @@
 import flet as ft
 import database as db
-from database.models import Tienda
+from database.models import EntregaTienda, ReservaTienda, Tienda
 from utils import configurar_retroceso, mostrar_snackbar, imagen_disponible
 from configuaraciones_adicionales.editar_tienda import editar_tienda_view
 from datetime import datetime
@@ -143,8 +143,18 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
             page.update()
             return
 
-        for r in reservas:
-            rid, producto, cantidad, total, usuario_nombre, fecha_compra, estado = r
+        reservas = [
+            fila if isinstance(fila, ReservaTienda) else ReservaTienda.desde_fila(fila)
+            for fila in reservas
+        ]
+        for reserva in reservas:
+            rid = reserva.id
+            producto = reserva.producto or "Producto sin nombre"
+            cantidad = reserva.cantidad
+            total = float(reserva.total or 0)
+            usuario_nombre = reserva.cliente or "Cliente"
+            fecha_compra = reserva.fecha or "Fecha no disponible"
+            estado = reserva.estado or "Estado no disponible"
 
             def hacer_entregar(id_reserva):
                 # ACCIÓN: prepara el diálogo de confirmación de entrega.
@@ -265,8 +275,17 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
             page.update()
             return
 
-        for e in entregadas:
-            rid, producto, cantidad, total, usuario_nombre, fecha_entrega = e
+        entregadas = [
+            fila if isinstance(fila, EntregaTienda) else EntregaTienda.desde_fila(fila)
+            for fila in entregadas
+        ]
+        for entrega in entregadas:
+            rid = entrega.id
+            producto = entrega.producto or "Producto sin nombre"
+            cantidad = entrega.cantidad
+            total = float(entrega.total or 0)
+            usuario_nombre = entrega.cliente or "Cliente"
+            fecha_entrega = entrega.fecha_entrega or "Fecha no disponible"
 
             card = ft.Container(
                 content=ft.Column([

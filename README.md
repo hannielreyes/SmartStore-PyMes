@@ -140,3 +140,10 @@ politica concreta que rechazo la operacion.
 Si quieres, procedo a:
 - añadir la verificación de permisos en la app (si confirmas que `flet` tiene API para solicitar permisos en runtime), o
 - crear un script `build_and_install.sh`/`.ps1` para automatizar build + instalación en el dispositivo.
+
+## Estructuras de datos aplicadas en la aplicación
+
+- **Listas:** agrupan productos, tiendas, reservas, entregas y alertas para que la interfaz pueda recorrerlas y mostrarlas. Los diccionarios conservan los datos del usuario y el contexto que necesita la interfaz.
+- **Dataclasses:** `database/models.py` define registros tipados para cuentas, productos, tiendas, reservas, entregas, alertas y ventas diarias. Las consultas de dominio los devuelven como objetos; el formulario de creación también representa sus productos pendientes con un dataclass.
+- **Búsqueda lineal:** `services/busqueda_lineal.py` recorre la lista de productos candidatos y compara sus nombres sin distinguir mayúsculas. La consulta a la base de datos limita primero los candidatos para no cargar todo el catálogo en memoria.
+- **Cola:** `services/cola_tareas.py` usa `queue.Queue` y una tarea tipada con `dataclass` para registrar en segundo plano las búsquedas sin resultados, sin bloquear la interfaz.

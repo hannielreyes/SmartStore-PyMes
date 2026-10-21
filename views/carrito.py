@@ -1,6 +1,7 @@
 import flet as ft
 from utils import mostrar_snackbar, abrir_url_en_background, configurar_retroceso
 import database as db
+from database.models import ReservaCliente, Tienda
 import warnings
 import threading
 
@@ -286,7 +287,8 @@ def carrito_view(page: ft.Page, usuario, go_back):
             mostrar_snackbar(page, "❌ No encontramos la tienda. Revisa la información e inténtalo nuevamente 😊", color="red")
             return
 
-        usuario_id = tienda[4]
+        tienda = Tienda.desde_fila(tienda)
+        usuario_id = tienda.usuario_id
         paypal_email = db.obtener_paypal_email(usuario_id)
 
         if not paypal_email:
@@ -398,11 +400,21 @@ def carrito_view(page: ft.Page, usuario, go_back):
             usar_reservas_precargadas = False
         else:
             reservas = db.obtener_reservas_usuario(usuario["id"])
+        reservas = [
+            fila if isinstance(fila, ReservaCliente) else ReservaCliente.desde_fila(fila)
+            for fila in reservas
+        ]
         total_c = 0.0
         total_d = 0.0
 
-        for r in reservas:
-            rid, nom, cant, pc, pd, estado, tienda_id = r
+        for reserva in reservas:
+            rid = reserva.id
+            nom = reserva.producto or "Producto sin nombre"
+            cant = reserva.cantidad
+            pc = float(reserva.precio_cordobas or 0)
+            pd = float(reserva.precio_dolares or 0)
+            estado = reserva.estado
+            tienda_id = reserva.tienda_id
             subtotal_c = pc * cant
             subtotal_d = pd * cant
 

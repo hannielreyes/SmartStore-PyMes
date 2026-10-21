@@ -1,4 +1,4 @@
-from .conexion import (
+﻿from .conexion import (
     get_db_connection,
     _supabase_activo,
     _supabase_unico,
@@ -7,6 +7,7 @@ from .conexion import (
     _supabase_actualizar,
     _supabase_borrar,
 )
+from .models import Tienda
 import bcrypt, hashlib, secrets
 from datetime import datetime, timedelta
 from urllib.parse import quote
@@ -19,7 +20,7 @@ def obtener_tienda():
         tienda = _supabase_unico(
             "tiendas", "?select=id,nombre,whatsapp,tasa_cambio,usuario_id,direccion,saldo,imagen&limit=1"
         )
-        return tuple(tienda.get(campo) for campo in ("id", "nombre", "whatsapp", "tasa_cambio", "usuario_id", "direccion", "saldo", "imagen")) if tienda else None
+        return Tienda(*(tienda.get(campo) for campo in ("id", "nombre", "whatsapp", "tasa_cambio", "usuario_id", "direccion", "saldo", "imagen"))) if tienda else None
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -27,7 +28,7 @@ def obtener_tienda():
     )
     tienda = cursor.fetchone()
     conn.close()
-    return tienda
+    return Tienda.desde_fila(tienda) if tienda else None
 
 
 
@@ -38,7 +39,7 @@ def obtener_tienda_usuario(usuario_id):
             "tiendas",
             f"?select=id,nombre,whatsapp,tasa_cambio,usuario_id,direccion,saldo,imagen&usuario_id=eq.{usuario_id}&limit=1",
         )
-        return tuple(tienda.get(campo) for campo in ("id", "nombre", "whatsapp", "tasa_cambio", "usuario_id", "direccion", "saldo", "imagen")) if tienda else None
+        return Tienda(*(tienda.get(campo) for campo in ("id", "nombre", "whatsapp", "tasa_cambio", "usuario_id", "direccion", "saldo", "imagen"))) if tienda else None
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -47,7 +48,7 @@ def obtener_tienda_usuario(usuario_id):
     )
     tienda = cursor.fetchone()
     conn.close()
-    return tienda
+    return Tienda.desde_fila(tienda) if tienda else None
 
 
 
@@ -57,7 +58,7 @@ def obtener_tienda_por_id(tienda_id):
         tienda = _supabase_unico(
             "tiendas", f"?select=id,nombre,whatsapp,tasa_cambio,usuario_id,direccion,saldo,imagen&id=eq.{tienda_id}&limit=1"
         )
-        return tuple(tienda.get(campo) for campo in ("id", "nombre", "whatsapp", "tasa_cambio", "usuario_id", "direccion", "saldo", "imagen")) if tienda else None
+        return Tienda(*(tienda.get(campo) for campo in ("id", "nombre", "whatsapp", "tasa_cambio", "usuario_id", "direccion", "saldo", "imagen"))) if tienda else None
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -66,7 +67,7 @@ def obtener_tienda_por_id(tienda_id):
     )
     tienda = cursor.fetchone()
     conn.close()
-    return tienda
+    return Tienda.desde_fila(tienda) if tienda else None
 
 
 
@@ -74,7 +75,7 @@ def obtener_tienda_por_id(tienda_id):
 def obtener_tiendas_usuario(usuario_id):
     if _supabase_activo():
         filas = _supabase_lista("tiendas", f"?select=id,nombre,whatsapp,tasa_cambio,usuario_id,direccion,saldo,imagen&usuario_id=eq.{usuario_id}")
-        return [tuple(fila.get(campo) for campo in ("id", "nombre", "whatsapp", "tasa_cambio", "usuario_id", "direccion", "saldo", "imagen")) for fila in filas]
+        return [Tienda(*(fila.get(campo) for campo in ("id", "nombre", "whatsapp", "tasa_cambio", "usuario_id", "direccion", "saldo", "imagen"))) for fila in filas]
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -83,7 +84,7 @@ def obtener_tiendas_usuario(usuario_id):
     )
     tiendas = cursor.fetchall()
     conn.close()
-    return tiendas
+    return [Tienda.desde_fila(fila) for fila in tiendas]
 
 
 

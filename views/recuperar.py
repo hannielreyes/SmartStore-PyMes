@@ -1,4 +1,4 @@
-import random
+﻿import random
 import threading
 from urllib.parse import quote
 
@@ -144,7 +144,7 @@ def recuperar_view(page: ft.Page, go_to_menu):
             page.update()
             return
 
-        correo_guardado = usuario[2]
+        correo_guardado = usuario.correo
         # telefono_registrado = usuario[3]
         # if not telefono_registrado:
         #     mostrar_resultado("❌ No encontramos un WhatsApp asociado a esta cuenta. Contacta con soporte para recuperar el acceso 😊", "red")

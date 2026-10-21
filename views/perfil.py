@@ -1,6 +1,7 @@
 import flet as ft
 
 import database as db
+from database.models import Tienda
 from utils import configurar_retroceso, mostrar_snackbar
 from views.login import codigo_sesion_valido
 
@@ -20,11 +21,15 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
     tiendas = contexto.get("tiendas")
     if tiendas is None:
         tiendas = db.obtener_tiendas_usuario(usuario["id"])
+    tiendas = [
+        fila if isinstance(fila, Tienda) else Tienda.desde_fila(fila)
+        for fila in tiendas
+    ]
 
     def ir_a_billetera(e):
         # ACCIÓN: abre la billetera o explica por qué aún no está disponible.
         if tiendas:
-            go_to_control_reservas(tiendas[0][0], True, False)
+            go_to_control_reservas(tiendas[0].id, True, False)
             return
 
         dialogo = ft.AlertDialog(
@@ -51,8 +56,8 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
     # BOTONES DINÁMICOS: crea un acceso a la billetera por cada tienda.
     botones_billeteras = [
         ft.ElevatedButton(
-            f"💰 {tienda[1]}",
-            on_click=lambda e, tienda_id=tienda[0]: go_to_control_reservas(tienda_id, True, False),
+            f"💰 {tienda.nombre}",
+            on_click=lambda e, tienda_id=tienda.id: go_to_control_reservas(tienda_id, True, False),
             bgcolor="#EFD320",
             color="white",
             height=36,

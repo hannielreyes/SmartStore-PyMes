@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import flet as ft
 from utils import (
     abrir_selector_imagen,
@@ -26,8 +26,8 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
     )
 
     datos_usuario = db.obtener_usuario_por_id(usuario["id"])
-    telefono_actual = datos_usuario[3] if datos_usuario else ""
-    fecha_actual = datos_usuario[4] if datos_usuario else ""
+    telefono_actual = datos_usuario.telefono if datos_usuario else ""
+    fecha_actual = datos_usuario.fecha_nacimiento if datos_usuario else ""
 
     # DIÁLOGO: abre el formulario para editar los datos personales del usuario.
     def editar_datos_personales(e):
@@ -295,7 +295,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
 
     # Imagen de perfil
     datos_usuario = db.obtener_usuario_por_id(usuario["id"])
-    imagen_perfil = datos_usuario[5] if datos_usuario and len(datos_usuario) > 5 else None
+    imagen_perfil = datos_usuario.imagen if datos_usuario else None
     perfil_imagen_control = ft.Container(width=48, height=48, bgcolor="#F3F3F3", border_radius=12)
     texto_imagen_perfil = "✏️ Editar imagen de perfil" if imagen_perfil else "🖼️ Agregar imagen a su perfil"
 
