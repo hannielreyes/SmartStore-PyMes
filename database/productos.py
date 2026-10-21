@@ -10,7 +10,6 @@ from .conexion import (
     _supabase_actualizar,
     _supabase_borrar,
 )
-from .resenas import obtener_promedio_calificacion
 from .models import (
     AlertaInventario,
     Producto,
@@ -77,7 +76,7 @@ def obtener_top_productos(limit=10, min_compras=3):
                 continue
             producto = _supabase_unico("productos", f"?select=id,nombre,precio_cordobas,precio_dolares,stock&id=eq.{producto_id}&limit=1")
             if producto:
-                resultados.append(ProductoDestacado(producto["id"], producto["nombre"], producto.get("precio_cordobas"), producto.get("precio_dolares"), producto.get("stock"), compras, obtener_promedio_calificacion(producto_id)))
+                resultados.append(ProductoDestacado(producto["id"], producto["nombre"], producto.get("precio_cordobas"), producto.get("precio_dolares"), producto.get("stock"), compras))
             if len(resultados) >= limit:
                 break
         return resultados
@@ -86,11 +85,9 @@ def obtener_top_productos(limit=10, min_compras=3):
     cursor.execute(
         """
         SELECT p.id, p.nombre, p.precio_cordobas, p.precio_dolares, p.stock,
-               COUNT(r.id) as compras,
-               AVG(res.calificacion) as promedio_calificacion
+               COUNT(r.id) as compras
         FROM productos p
         JOIN reservas r ON r.producto_id = p.id AND r.estado = 'Pagado'
-        LEFT JOIN resenas res ON res.producto_id = p.id
         GROUP BY p.id
         HAVING COUNT(r.id) >= ?
         ORDER BY compras DESC

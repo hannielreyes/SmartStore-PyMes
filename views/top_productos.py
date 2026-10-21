@@ -33,11 +33,10 @@ def top_productos_view(page: ft.Page, usuario, go_back):
             precio_d = float(p.precio_dolares or 0)
             stock = int(p.stock or 0)
             compras = int(p.compras or 0)
-            # La clasificación del top refleja popularidad, no reseñas manuales:
-            # 3 compras = 1 estrella; cada 2 compras adicionales suma una estrella.
-            estrellas_llenas = 1 if compras == 3 else min(5, ((compras - 4) // 2) + 2)
+            # Las estrellas las asigna la plataforma según las compras pagadas.
+            estrellas_llenas = p.estrellas_popularidad
             estrellas = "★" * estrellas_llenas + "☆" * (5 - estrellas_llenas)
-            rating_text = f"{estrellas}  Popularidad: {estrellas_llenas}/5"
+            rating_text = f"{estrellas}  Popularidad por compras: {estrellas_llenas}/5"
 
             card = ft.Container(
                 content=ft.Row(

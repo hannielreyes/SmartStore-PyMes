@@ -206,7 +206,7 @@ class ProductoReserva:
 
 @dataclass(frozen=True, slots=True)
 class ProductoDestacado:
-    """Producto con datos agregados de compras y calificación."""
+    """Producto del top, clasificado automáticamente por compras pagadas."""
 
     id: int
     nombre: str | None
@@ -214,11 +214,19 @@ class ProductoDestacado:
     precio_dolares: float | None
     stock: int | None
     compras: int
-    promedio_calificacion: float | None = None
+
+    @property
+    def estrellas_popularidad(self) -> int:
+        """Asigna una a cinco estrellas según la cantidad de compras pagadas.
+
+        Tres compras obtienen una estrella; cada dos compras adicionales
+        suman otra, hasta un máximo de cinco.
+        """
+        return max(1, min(5, 1 + (self.compras - 3) // 2))
 
     @classmethod
     def desde_fila(cls, fila: Sequence[Any] | "ProductoDestacado") -> "ProductoDestacado":
-        return fila if isinstance(fila, cls) else cls(*fila[:7])
+        return fila if isinstance(fila, cls) else cls(*fila[:6])
 
 
 @dataclass(frozen=True, slots=True)
