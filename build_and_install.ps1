@@ -1,9 +1,14 @@
-# build_and_install.ps1 - Build APK with Flet, install on device, and tail adb logs
+# build_and_install.ps1 - Build and validate APK with Flet
 # Requirements: flet CLI on PATH, adb in PATH, PowerShell
+
+param(
+    [switch]$BuildOnly
+)
 
 Set-StrictMode -Version Latest
 
 $buildConfigPath = Join-Path $PSScriptRoot "supabase_build_config.py"
+$apkValidatorPath = Join-Path $PSScriptRoot "scripts\validate_apk.py"
 $localPython = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
 $localFlet = Join-Path $PSScriptRoot ".venv\Scripts\flet.exe"
 
@@ -12,6 +17,9 @@ if (-not (Test-Path $localPython)) {
 }
 if (-not (Test-Path $localFlet)) {
     throw "No se encontró el CLI de Flet en $localFlet. Instala requirements.txt dentro de .venv."
+}
+if (-not (Test-Path $apkValidatorPath)) {
+    throw "No se encontró el validador de APK requerido en $apkValidatorPath."
 }
 
 $androidSdkCandidates = @(
@@ -55,6 +63,117 @@ function Get-EnvValue([string]$name) {
     return (($line -split "=", 2)[1]).Trim().Trim('"').Trim("'")
 }
 
+function Get-AppPackageExclusions([string]$rootPath) {
+    # serious_python matches exclusions by exact relative path, not by wildcard.
+    $excludedDirectories = @(
+        ".git", ".venv", "venv", ".flet", ".pytest_cache", ".vscode", ".idea",
+        "__pycache__", "node_modules", "build", "storage", "temp", "scripts",
+        "supabase", "tests", "test", ".github", ".devcontainer"
+    )
+    $excludedFileNames = @(
+        ".gitignore", ".gitattributes", ".fletignore", "flet.yaml",
+        "pyproject.toml", "requirements.txt", "README.md", "check_supabase.py",
+        "camera_test.py", "inspect_fc.py", "webhook.py", "proyecto.py",
+        "Untitled.py"
+    )
+    $exclusions = [System.Collections.Generic.List[string]]::new()
+    $pendingDirectories = [System.Collections.Generic.Stack[string]]::new()
+    $rootFullPath = [System.IO.Path]::GetFullPath($rootPath).TrimEnd([char[]]@('\', '/')) + [System.IO.Path]::DirectorySeparatorChar
+    $pendingDirectories.Push($rootFullPath)
+
+    while ($pendingDirectories.Count -gt 0) {
+        $directory = $pendingDirectories.Pop()
+        foreach ($entry in [System.IO.Directory]::EnumerateFileSystemEntries($directory)) {
+            $relativePath = $entry.Substring($rootFullPath.Length)
+            $item = Get-Item -LiteralPath $entry -Force
+            if ($item.PSIsContainer) {
+                if ($excludedDirectories -contains $item.Name) {
+                    $exclusions.Add($relativePath)
+                } else {
+                    $pendingDirectories.Push($item.FullName)
+                }
+                continue
+            }
+
+            $name = $item.Name
+            if (
+                $name -match '(?i)^\.env(?:\..*)?$' -or
+                $name -ieq "sesion.json" -or
+                $name -in $excludedFileNames -or
+                $name -match '(?i)\.(?:db|sqlite|sqlite3)(?:-(?:journal|wal|shm))?$' -or
+                $name -match '(?i)\.(?:log|sql|md|ps1|tmp|bak|pyc|pyo|key|pem|p8|p12|pfx|jks|keystore)$'
+            ) {
+                $exclusions.Add($relativePath)
+            }
+        }
+    }
+
+    return @($exclusions | Sort-Object -Unique)
+}
+
+function Reset-StaleFlutterExtensionReferences([string]$rootPath) {
+    $flutterDirectory = Join-Path $rootPath "build\flutter"
+    $pubspecPath = Join-Path $flutterDirectory "pubspec.yaml"
+    $baselinePath = "$pubspecPath.orig"
+    if (-not (Test-Path -LiteralPath $pubspecPath)) {
+        return
+    }
+
+    $pubspec = Get-Content -LiteralPath $pubspecPath -Raw
+    $hasMissingExtension = $false
+    foreach ($match in [regex]::Matches($pubspec, '(?im)^\s*path:\s*["'']?([^"''\r\n]+)')) {
+        $extensionPath = $match.Groups[1].Value.Trim()
+        if ($extensionPath -match '(?i)[\\/]flutter-packages[\\/]' -and -not (Test-Path -LiteralPath $extensionPath)) {
+            $hasMissingExtension = $true
+            break
+        }
+    }
+    $hasMissingDependency = $false
+    $cachedExtensions = Join-Path $rootPath "build\flutter-packages"
+    if (Test-Path -LiteralPath $cachedExtensions) {
+        foreach ($extension in (Get-ChildItem -LiteralPath $cachedExtensions -Directory)) {
+            $manifestPath = Join-Path $extension.FullName "pubspec.yaml"
+            if (-not (Test-Path -LiteralPath $manifestPath)) {
+                continue
+            }
+            $manifest = Get-Content -LiteralPath $manifestPath -Raw
+            $nameMatch = [regex]::Match($manifest, '(?im)^name:\s*["'']?([^"''\r\n ]+)')
+            if (
+                $nameMatch.Success -and
+                $pubspec -notmatch "(?im)^\s{2}$([regex]::Escape($nameMatch.Groups[1].Value))\s*:"
+            ) {
+                $hasMissingDependency = $true
+                break
+            }
+        }
+    }
+    if (-not $hasMissingExtension -and -not $hasMissingDependency) {
+        return
+    }
+
+    if ($hasMissingExtension) {
+        if (-not (Test-Path -LiteralPath $baselinePath)) {
+            throw "Flet tiene una referencia a una extensión Flutter inexistente y no se encontró el manifiesto base $baselinePath."
+        }
+
+        $baseline = Get-Content -LiteralPath $baselinePath -Raw
+        foreach ($match in [regex]::Matches($baseline, '(?im)^\s*path:\s*["'']?([^"''\r\n]+)')) {
+            $extensionPath = $match.Groups[1].Value.Trim()
+            if ($extensionPath -match '(?i)[\\/]flutter-packages[\\/]' -and -not (Test-Path -LiteralPath $extensionPath)) {
+                throw "El manifiesto base de Flutter también contiene una extensión local inexistente: $extensionPath"
+            }
+        }
+
+        Copy-Item -LiteralPath $baselinePath -Destination $pubspecPath -Force
+    }
+
+    $templateHashPath = Join-Path $rootPath "build\.hash\template-2"
+    if (Test-Path -LiteralPath $templateHashPath) {
+        Remove-Item -LiteralPath $templateHashPath -Force
+    }
+    Write-Host "Invalidated Flet's extension template cache so Flutter dependencies are regenerated."
+}
+
 function Upload-SupabaseFile([string]$path, [string]$remotePath, [string]$contentType) {
     $uploadUrl = "$supabaseUrl/storage/v1/object/smartstore-media/$remotePath"
     $headers = @{
@@ -68,22 +187,22 @@ function Upload-SupabaseFile([string]$path, [string]$remotePath, [string]$conten
 }
 
 function Stop-StaleAndroidBuildProcesses {
-    $patterns = @('GradleDaemon', 'gradle', 'java', 'javaw')
-    foreach ($pattern in $patterns) {
-        $processes = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-            Where-Object {
-                $_.Name -match $pattern -or ($_.CommandLine -and $_.CommandLine -match 'gradle|flutter|android|flet')
-            }
+    $projectPathPattern = [regex]::Escape([System.IO.Path]::GetFullPath($PSScriptRoot))
+    $processes = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.CommandLine -and
+            $_.CommandLine -match $projectPathPattern -and
+            $_.CommandLine -match '(?i)gradle|flutter|flet'
+        }
 
-        foreach ($proc in $processes) {
-            try {
-                if ($proc.ProcessId -gt 0) {
-                    Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
-                    Write-Host "Detenido proceso stale: $($proc.Name) (PID $($proc.ProcessId))"
-                }
-            } catch {
-                Write-Warning "No se pudo detener $($proc.Name) (PID $($proc.ProcessId)): $($_.Exception.Message)"
+    foreach ($proc in $processes) {
+        try {
+            if ($proc.ProcessId -gt 0) {
+                Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
+                Write-Host "Detenido proceso de build del proyecto: $($proc.Name) (PID $($proc.ProcessId))"
             }
+        } catch {
+            Write-Warning "No se pudo detener $($proc.Name) (PID $($proc.ProcessId)): $($_.Exception.Message)"
         }
     }
 
@@ -101,8 +220,6 @@ function Stop-StaleAndroidBuildProcesses {
         }
     }
 
-    Get-ChildItem -Path $PSScriptRoot -Recurse -Force -Filter *.lock -ErrorAction SilentlyContinue |
-        ForEach-Object { Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue }
 }
 
 $envPath = Join-Path $PSScriptRoot ".env"
@@ -119,19 +236,27 @@ if ([string]::IsNullOrWhiteSpace($supabaseUrl) -or [string]::IsNullOrWhiteSpace(
     exit 1
 }
 $keyParts = $supabaseKey.Split('.')
-if ($keyParts.Count -eq 3) {
+if ($supabaseKey -match '(?i)^sb_secret_') {
+    throw "SMARTSTORE_SUPABASE_KEY es una clave secreta de servidor y no puede usarse en una APK."
+} elseif ($supabaseKey -match '^sb_publishable_[A-Za-z0-9_-]{16,}$') {
+    Write-Host "Supabase client key type verified: publishable."
+} elseif ($keyParts.Count -eq 3) {
     try {
         $payloadPart = $keyParts[1].Replace('-', '+').Replace('_', '/')
         while (($payloadPart.Length % 4) -ne 0) { $payloadPart += '=' }
         $payloadJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payloadPart))
         $payload = $payloadJson | ConvertFrom-Json
         if ($payload.role -eq 'service_role') {
-            Write-Error "SMARTSTORE_SUPABASE_KEY es service_role. Usa la clave anon/public para la APK."
-            exit 1
+            throw "SMARTSTORE_SUPABASE_KEY es service_role y no puede usarse en una APK."
+        }
+        if ($payload.role -ne 'anon') {
+            throw "No se pudo confirmar que SMARTSTORE_SUPABASE_KEY sea una clave cliente anon."
         }
     } catch {
-        Write-Warning "No se pudo inspeccionar el formato JWT de SMARTSTORE_SUPABASE_KEY; confirma manualmente que sea anon/public."
+        throw "No se pudo validar de forma segura el tipo de SMARTSTORE_SUPABASE_KEY; la APK no se construirá."
     }
+} else {
+    throw "SMARTSTORE_SUPABASE_KEY no tiene un formato cliente anon/public reconocido; la APK no se construirá."
 }
 if ([string]::IsNullOrWhiteSpace($updateUrl)) {
     $updateUrl = "$supabaseUrl/storage/v1/object/public/smartstore-media/updates/smartstore-update.json"
@@ -160,8 +285,22 @@ try {
     Remove-Item (Join-Path $PSScriptRoot "build\python-app\.env") -Force -ErrorAction SilentlyContinue
     $env:PYTHONUTF8 = "1"
     $env:PYTHONIOENCODING = "utf-8"
+    $gradleMemoryOptions = "-Dorg.gradle.jvmargs=-Xmx3G -Dorg.gradle.workers.max=1"
+    $env:GRADLE_OPTS = (@($env:GRADLE_OPTS, $gradleMemoryOptions) |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join " "
+    Write-Host "Limiting Gradle to a 3 GiB heap and one worker for this build."
+    $packageExclusions = @(Get-AppPackageExclusions $PSScriptRoot)
+    if (-not $packageExclusions -or $packageExclusions.Count -eq 0) {
+        throw "No se pudieron generar exclusiones seguras para el paquete."
+    }
+    Reset-StaleFlutterExtensionReferences $PSScriptRoot
+    Write-Host "Applying $($packageExclusions.Count) exact-path exclusions to the Flet package."
+    $buildArguments = @(
+        "build", "apk", "--arch", "arm64-v8a", "--yes", "--no-rich-output",
+        "--compile-app", "--exclude"
+    ) + $packageExclusions
     Write-Host "Building ARM64 APK with Supabase configuration..."
-    & $localFlet build apk --arch arm64-v8a --yes --no-rich-output
+    & $localFlet @buildArguments
     if ($LASTEXITCODE -ne 0) {
         throw "Flet no pudo construir la APK. Codigo: $LASTEXITCODE"
     }
@@ -178,6 +317,14 @@ if (-not $apk) {
 }
 
 Write-Host "Found APK: $($apk.FullName)"
+& $localPython $apkValidatorPath $apk.FullName
+if ($LASTEXITCODE -ne 0) {
+    throw "La validación de seguridad del APK falló. No se publicará ni instalará."
+}
+if ($BuildOnly) {
+    Write-Host "APK validada. Modo BuildOnly: no se publicó ni se instaló."
+    return
+}
 Write-Host "APK lista para instalar en Android y para actualizacion en Supabase."
 
 $remoteApkPath = "updates/SmartStore-$appVersion.apk"

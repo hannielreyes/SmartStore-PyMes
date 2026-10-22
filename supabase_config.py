@@ -15,8 +15,12 @@ from urllib.request import Request, urlopen
 
 def _cargar_config_build_temporal():
     """Lee la config de build si existe; evita warnings de importación cuando no existe."""
-    ruta = os.path.join(os.path.dirname(__file__), "supabase_build_config.py")
-    if not os.path.exists(ruta):
+    base = os.path.join(os.path.dirname(__file__), "supabase_build_config")
+    ruta = next(
+        (candidata for candidata in (base + ".py", base + ".pyc") if os.path.exists(candidata)),
+        None,
+    )
+    if ruta is None:
         return "", "", "", ""
 
     spec = importlib.util.spec_from_file_location("supabase_build_config", ruta)

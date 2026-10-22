@@ -35,20 +35,26 @@ python camera_test.py
 
 ## Build para Android
 
-1. Asegúrate de que `pyproject.toml` (root o `build/python-app/pyproject.toml`) contenga `flet_camera` en `dependencies` y el permiso de cámara (ya configurado).
-2. Construye la APK con Flet (desde la raíz del repo):
+Para generar y validar una APK sin publicarla ni instalarla, usa:
 
-```bash
-flet build apk
+```powershell
+.\build_and_install.ps1 -BuildOnly
 ```
 
-(Dependiendo de tu versión de Flet, el comando puede variar; revisa `flet --help` si falla.)
+Para publicar la actualización en Supabase e instalarla si hay un dispositivo
+conectado, ejecuta `.\build_and_install.ps1` sin `-BuildOnly`.
 
-3. Instala la APK en el dispositivo y abre la app.
+El script valida la clave cliente de Supabase, pasa exclusiones de rutas exactas
+al empaquetador de Flet y revisa `assets/app.zip` antes de publicar o instalar la
+APK. La validación detiene el flujo si encuentra archivos locales/sensibles o si
+faltan módulos y recursos de runtime. Si una caché de Flutter conserva una ruta
+rota a una extensión local, el script la restablece al manifiesto base generado
+por Flet para que el empaquetador pueda volver a registrar la extensión. También
+limita Gradle a 3 GiB y un worker para reducir fallos por falta de memoria en el
+equipo de compilación.
 
-```bash
-adb install -r path/to/your.apk
-```
+No uses `flet build apk` para una versión de distribución: ese comando directo no
+ejecuta las exclusiones ni el control de seguridad de este script.
 
 ## Permisos en tiempo de ejecución
 
@@ -81,7 +87,12 @@ adb logcat | grep -i flet
 
 ## Conexion de prueba con Supabase
 
-La conexion preparada usa la URL del proyecto y la clave `anon/public` mediante variables de entorno. La clave no debe escribirse en el codigo ni en el APK.
+En desarrollo, la conexion usa la URL del proyecto y la clave cliente
+`anon/public` desde variables de entorno. Para una APK, el script de release
+genera una configuracion temporal que Flet compila junto con la app; el `.env`
+no se distribuye. La clave cliente publicable/anon necesariamente queda
+disponible en la aplicacion y no es un secreto administrativo: el acceso a los
+datos debe protegerse con RLS y funciones seguras de Supabase.
 
 En PowerShell, para probarla solo durante la sesion actual:
 
@@ -90,7 +101,9 @@ $env:SMARTSTORE_SUPABASE_KEY = "PEGA_AQUI_TU_CLAVE_ANON_PUBLIC"
 python check_supabase.py
 ```
 
-Si la prueba funciona, mostrara `Conexion correcta`. La URL se carga desde la configuracion local durante la ejecucion y el empaquetado.
+Si la prueba funciona, mostrara `Conexion correcta`. La URL y la clave cliente
+se cargan desde la configuracion local durante el desarrollo y desde la
+configuracion generada para la APK.
 
 No uses una clave `service_role`, `secret` o similar en la aplicacion.
 
