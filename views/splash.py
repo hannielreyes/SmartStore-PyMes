@@ -1,5 +1,4 @@
 import flet as ft
-import asyncio
 from utils import configurar_retroceso
 import hashlib
 contrasena = hashlib.md5(b"mi_clave_secreta") 
@@ -8,7 +7,7 @@ def splash_view(page: ft.Page, on_complete):
     configurar_retroceso(page, lambda: None)
     page.clean()
     page.update()
-    page.bgcolor = "#F5F7FA"
+    page.bgcolor = "#020526"
     page.padding = 0
     page.spacing = 0
     page.margin = 0
@@ -21,23 +20,17 @@ def splash_view(page: ft.Page, on_complete):
 
     # BOTÓN: permite avanzar desde la bienvenida hacia la siguiente pantalla.
     btn_avanzar = ft.ElevatedButton(
-    content=ft.Column(
-        [
-            ft.Text("📎", size=18),
-            ft.Text("🙃", size=16),
-        ],
-        alignment=ft.MainAxisAlignment.CENTER,
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-        tight=True,
-    ),
-    bgcolor="#C3D2D6",
-    color="white",
-    width=60,
-    height=60,
-    style=ft.ButtonStyle(
-        shape=ft.RoundedRectangleBorder(radius=5)
+        content=ft.Icon(ft.Icons.ARROW_FORWARD, size=28),
+        tooltip="Continuar",
+        bgcolor="#02032415",
+        color="#EE580DDF",
+        width=58,
+        height=58,
+        style=ft.ButtonStyle(
+            shape=ft.RoundedRectangleBorder(radius=5),
+            side=ft.BorderSide(color="#030526", width=0),
+        )
     )
-)
 
     finalizado = {"valor": False}
 
@@ -49,13 +42,6 @@ def splash_view(page: ft.Page, on_complete):
         page.clean()
         page.update()
         on_complete()
-
-    async def auto_avanzar():
-        await asyncio.sleep(6)
-        if not finalizado["valor"]:
-            avanzar()
-
-    page.run_task(auto_avanzar)
 
     btn_avanzar.on_click = avanzar
 

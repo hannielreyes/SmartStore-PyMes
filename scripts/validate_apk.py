@@ -48,7 +48,7 @@ REQUIRED_APP_FILES = {
     "views/top_productos.pyc",
 }
 REQUIRED_ASSETS = {
-    "assets/Bienvenida.png",
+    "assets/Bienvenidag.png",
     "assets/Icon.png",
     "assets/fondo.png",
     "assets/fondopro.png",
