@@ -13,7 +13,7 @@ def splash_view(page: ft.Page, on_complete):
     page.margin = 0
 
     fondo = ft.Image(
-        src="Bienvenida.png",
+        src="bienvenida.png",
         fit="cover",
         expand=True,
     )

@@ -20,7 +20,7 @@ def _show_full_image(page: ft.Page, src: str, src_2: str | None = None):
 
     def cerrar(e):
         page.clean()
-        page.bgcolor = "white"
+        page.bgcolor = "#FFFFFF"
         for control in previous_controls:
             page.add(control)
         page.update()
@@ -39,7 +39,7 @@ def _show_full_image(page: ft.Page, src: str, src_2: str | None = None):
                 on_click=siguiente,
                 visible=len(imagenes) > 1,
                 bgcolor="#040D4A",
-                color="white",
+                color="#FFFFFF",
                 height=44,
                 width=ancho_btn_siguiente_imagen,
             ),
@@ -75,7 +75,7 @@ def _show_full_image(page: ft.Page, src: str, src_2: str | None = None):
                     width=ancho_imagen,
                     height=560,
                     border_radius=24,
-                    bgcolor="transparent",
+                    bgcolor="#00000000",
                     padding=0,
                 ),
                 ft.Container(
@@ -95,7 +95,7 @@ def _show_full_image(page: ft.Page, src: str, src_2: str | None = None):
     )
 
     page.clean()
-    page.bgcolor = "white"
+    page.bgcolor = "#FFFFFF"
     page.add(vista_imagen)
     page.update()
 
@@ -103,7 +103,7 @@ def inventario_view(page: ft.Page, usuario, go_back):
     # PANTALLA: consulta, edición, eliminación y vista ampliada de productos.
     configurar_retroceso(page, lambda: go_back(usuario))
     page.clean()
-    page.bgcolor = "white"
+    page.bgcolor = "#FFFFFF"
     ancho_tarjeta = min(max((page.width or 360) - 96, 250), 440)
 
     fondo = ft.Container(
@@ -140,7 +140,7 @@ def inventario_view(page: ft.Page, usuario, go_back):
             keyboard_type=ft.KeyboardType.NUMBER,
             width=280,
         )
-        mensaje = ft.Text("", size=12, color="red")
+        mensaje = ft.Text("", size=12, color="#B3261E")
 
         def guardar(e):
             # ACCIÓN: valida y guarda los cambios del producto.
@@ -179,7 +179,7 @@ def inventario_view(page: ft.Page, usuario, go_back):
             dialogo.open = False
             page.update()
             cargar()
-            mostrar_snackbar(page, "✅ Producto actualizado correctamente.", color="green")
+            mostrar_snackbar(page, "✅ Producto actualizado correctamente.", color="#1B5E20")
 
         def cancelar(e):
             # ACCIÓN: cierra la edición sin modificar el producto.
@@ -197,7 +197,7 @@ def inventario_view(page: ft.Page, usuario, go_back):
             ),
             actions=[
                 ft.TextButton("↩️ Cancelar", on_click=cancelar),
-                ft.ElevatedButton("💾 Guardar", on_click=guardar, bgcolor="#040D4A", color="white"),
+                ft.ElevatedButton("💾 Guardar", on_click=guardar, bgcolor="#040D4A", color="#FFFFFF"),
             ],
         )
         page.overlay.append(dialogo)
@@ -234,7 +234,7 @@ def inventario_view(page: ft.Page, usuario, go_back):
             precio_d = p.precio_dolares
             stock = p.stock or 0
             tienda_id = p.tienda_id
-            color_stock = "#EFA520" if stock > 5 else "red"
+            color_stock = "#000000" if stock > 5 else "#B3261E"
 
             def hacer_confirmar(id_producto, nombre_producto, stock_producto):
                 def confirmar_eliminacion(e):
@@ -269,7 +269,7 @@ def inventario_view(page: ft.Page, usuario, go_back):
                             f"✅ Se eliminaron {cantidad} unidades de '{nombre_producto}'."
                         )
                         cargar()
-                        mostrar_snackbar(page, mensaje_confirmacion, color="green")
+                        mostrar_snackbar(page, mensaje_confirmacion, color="#1B5E20")
 
                     def cancelar(e):
                         dlg.open = False
@@ -283,7 +283,7 @@ def inventario_view(page: ft.Page, usuario, go_back):
                                 ft.Text(f"Producto: {nombre_producto}"),
                                 ft.Text(f"Unidades disponibles: {stock_producto}"),
                                 cantidad_input,
-                                (mensaje := ft.Text("", size=12, color="red")),
+                                (mensaje := ft.Text("", size=12, color="#B3261E")),
                             ],
                             tight=True,
                             spacing=8,
@@ -293,8 +293,8 @@ def inventario_view(page: ft.Page, usuario, go_back):
                             ft.ElevatedButton(
                                 "Eliminar",
                                 on_click=eliminar,
-                                bgcolor=ft.Colors.RED_400,
-                                color="white",
+                                bgcolor="#EF5350",
+                                color="#FFFFFF",
                             ),
                         ],
                     )
@@ -306,8 +306,8 @@ def inventario_view(page: ft.Page, usuario, go_back):
             btn_eliminar = ft.ElevatedButton(
                 "🗑 Eliminar",
                 on_click=hacer_confirmar(id_p, nombre, stock),
-                bgcolor=ft.Colors.RED_400,
-                color="white",
+                bgcolor="#EF5350",
+                color="#FFFFFF",
                 height=40,
                 width=ancho_btn_eliminar_producto,
             )
@@ -315,7 +315,7 @@ def inventario_view(page: ft.Page, usuario, go_back):
                 "✏️ Editar",
                 on_click=lambda e, id_producto=id_p, producto=p: mostrar_edicion(id_producto, producto),
                 bgcolor="#168AAD",
-                color="white",
+                color="#FFFFFF",
                 height=40,
                 width=ancho_btn_editar_producto,
             )
@@ -427,7 +427,7 @@ def inventario_view(page: ft.Page, usuario, go_back):
             lista.controls.append(
                 ft.Container(
                     content=card_content,
-                    bgcolor=ft.Colors.WHITE,
+                    bgcolor="#FFFFFF",
                     border_radius=18,
                     padding=12,
                     width=ancho_tarjeta,
@@ -454,13 +454,13 @@ def inventario_view(page: ft.Page, usuario, go_back):
                         [
                             ft.Text(f"Total de productos: {total_productos}", size=16, weight=ft.FontWeight.BOLD),
                             ft.Text("Estado del inventario", size=14, color="#555555"),
-                            ft.Text(f"+ {stock_total}", size=40, weight=ft.FontWeight.BOLD, color="#EFA520"),
+                            ft.Text(f"+ {stock_total}", size=40, weight=ft.FontWeight.BOLD, color="#000000"),
                             ft.Text("📋 Lista de productos", size=14, weight=ft.FontWeight.BOLD, color="#040D4A"),
                         ],
                         spacing=5,
                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
-                    bgcolor=ft.Colors.WHITE,
+                    bgcolor="#FFFFFF",
                     border_radius=15,
                     padding=15,
                     width=ancho_tarjeta,
@@ -471,7 +471,7 @@ def inventario_view(page: ft.Page, usuario, go_back):
                     on_click=lambda e: go_back(usuario),
                     width=ancho_boton_volver,
                     bgcolor="#040D4A",
-                    color="white",
+                    color="#FFFFFF",
                     height=44,
                 ),
             ],

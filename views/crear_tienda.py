@@ -18,7 +18,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
     # PANTALLA: formulario para crear una tienda y cargar sus imágenes.
     # Pantalla para crear una tienda y registrar sus primeros productos.
     configurar_retroceso(page, lambda: go_back(usuario))
-    page.bgcolor = "white"
+    page.bgcolor = "#FFFFFF"
 
     contexto = getattr(page, "_smartstore_context", None) or {}
     tiendas_usuario = contexto.get("tiendas")
@@ -80,7 +80,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
                     "Entendido 😊",
                     on_click=lambda e: (setattr(dlg, "open", False), page.update()),
                     bgcolor="#040D4A",
-                    color="white",
+                    color="#FFFFFF",
                 )
             ],
             actions_alignment=ft.MainAxisAlignment.CENTER,
@@ -194,7 +194,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
             tienda_imagen_preview.visible = True
             btn_reemplazar_logo.visible = True
             btn_quitar_logo.visible = True
-            mostrar_snackbar(page, "✅ Logo cargado", color="green")
+            mostrar_snackbar(page, "✅ Logo cargado", color="#1B5E20")
             page.update()
 
     def quitar_logo(e):
@@ -205,7 +205,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
         tienda_imagen_preview.visible = False
         btn_reemplazar_logo.visible = False
         btn_quitar_logo.visible = False
-        mostrar_snackbar(page, "✅ Logo quitado correctamente 😊", color="green")
+        mostrar_snackbar(page, "✅ Logo quitado correctamente 😊", color="#1B5E20")
         page.update()
 
     def procesar_imagen_producto(ruta, image_data=None):
@@ -224,7 +224,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
             if producto_imagen_2_path:
                 btn_reemplazar_imagen.text = "Reemplazar imagen 1"
                 btn_quitar_imagen.text = "Quitar imagen 1"
-            mostrar_snackbar(page, "✅ Imagen cargada", color="green")
+            mostrar_snackbar(page, "✅ Imagen cargada", color="#1B5E20")
             page.update()
 
     def procesar_imagen_producto_2(ruta, image_data=None):
@@ -252,7 +252,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
         producto_imagen_preview.visible = False
         btn_reemplazar_imagen.visible = False
         btn_quitar_imagen.visible = False
-        mostrar_snackbar(page, "✅ Imagen quitada correctamente 😊", color="green")
+        mostrar_snackbar(page, "✅ Imagen quitada correctamente 😊", color="#1B5E20")
         page.update()
 
     def quitar_imagen_2(e):
@@ -300,7 +300,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
             if destino_imagen:
                 destino_imagen(ruta, image_data)
             page.update()
-            mostrar_snackbar(page, "✅ Foto capturada", color="green")
+            mostrar_snackbar(page, "✅ Foto capturada", color="#1B5E20")
 
     async def capturar_foto(e):
         nonlocal camera
@@ -310,7 +310,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
                 await limpiar_camara()
                 procesar_imagen_capturada(image_data)
             except Exception as ex:
-                mostrar_snackbar(page, f"❌ Error: {ex}", color="red")
+                mostrar_snackbar(page, f"❌ Error: {ex}", color="#B3261E")
 
     async def abrir_camara_accion(e):
         nonlocal camera
@@ -328,7 +328,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
             await camera.initialize(cameras[0], fc.ResolutionPreset.MEDIUM, enable_audio=False)
         except Exception as ex:
             camera_container.visible = False
-            mostrar_snackbar(page, f"❌ Error: {ex}", color="red")
+            mostrar_snackbar(page, f"❌ Error: {ex}", color="#B3261E")
             page.update()
 
     def cerrar_camara(e):
@@ -349,7 +349,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
                     mostrar_snackbar(
                         page,
                         "🎥 Por ahora solo puedes agregar imágenes. Los videos aún no están disponibles 😊",
-                        color="orange",
+                        color="#8A4B08",
                     )
                     return
                 datos_imagen = normalizar_datos_imagen(archivo.bytes)
@@ -364,18 +364,18 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
                     with open(ruta, "wb") as image_file:
                         image_file.write(datos_imagen)
                 if not ruta:
-                    mostrar_snackbar(page, "❌ Android no entregó la imagen seleccionada", color="red")
+                    mostrar_snackbar(page, "❌ Android no entregó la imagen seleccionada", color="#B3261E")
                     return
                 await limpiar_camara()
                 restaurar_formulario()
                 if destino_imagen:
                     destino_imagen(ruta, datos_imagen)
                 else:
-                    mostrar_snackbar(page, "❌ No se encontró el destino de la imagen", color="red")
+                    mostrar_snackbar(page, "❌ No se encontró el destino de la imagen", color="#B3261E")
             else:
-                mostrar_snackbar(page, "Selección cancelada", color="orange")
+                mostrar_snackbar(page, "Selección cancelada", color="#8A4B08")
         except Exception as ex:
-            mostrar_snackbar(page, f"❌ Error: {ex}", color="red")
+            mostrar_snackbar(page, f"❌ Error: {ex}", color="#B3261E")
 
     async def seleccionar_galeria(callback_imagen):
         nonlocal destino_imagen
@@ -402,12 +402,12 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
     def mostrar_imagen_grande(ruta, image_data=None):
         modal = ft.Container(
             expand=True,
-            bgcolor="white",
+            bgcolor="#FFFFFF",
             content=ft.Container(
                 content=ft.Image(**obtener_fuente_imagen(ruta, image_data), fit="contain"),
                 width=360,
                 height=520,
-                bgcolor="white",
+                bgcolor="#FFFFFF",
                 padding=10,
                 alignment=ft.Alignment(0, 0),
             ),
@@ -431,18 +431,18 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
                         ft.Text("📸 Seleccionar imagen", size=24, weight=ft.FontWeight.BOLD),
                         camera_container,
                         imagen_capturada,
-                        ft.Divider(height=20, color="transparent"),
+                        ft.Divider(height=20, color="#00000000"),
                         ft.Row(
                             [
-                                ft.ElevatedButton("🖼️ Abrir Galería", on_click=abrir_galeria_accion, bgcolor="#168AAD", color="white", width=180),
+                                ft.ElevatedButton("🖼️ Abrir Galería", on_click=abrir_galeria_accion, bgcolor="#168AAD", color="#040D4A", width=180),
                             ],
                             alignment=ft.MainAxisAlignment.CENTER,
                             spacing=10,
                         ),
                         ft.Row(
                             [
-                                ft.ElevatedButton("📸 Capturar", on_click=capturar_foto, bgcolor="#EFA520", color="white", width=180),
-                                ft.ElevatedButton("↩️ Cerrar", on_click=cerrar_camara, bgcolor="red", color="white", width=180),
+                                ft.ElevatedButton("📸 Capturar", on_click=capturar_foto, bgcolor="#EFA520", color="#040D4A", width=180),
+                                ft.ElevatedButton("↩️ Cerrar", on_click=cerrar_camara, bgcolor="#B3261E", color="#FFFFFF", width=180),
                             ],
                             alignment=ft.MainAxisAlignment.CENTER,
                             spacing=10,
@@ -538,7 +538,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
             garantia=garantia,
             especificacion=especificacion,
         ))
-        productos_layout.controls.append(ft.Container(content=ft.Text(f"{nombre} | {categoria_input.value} | {marca_input.value or '-'} | {talla_input.value or '-'} | C${precio:.2f} | x{cantidad}"), padding=5, bgcolor=ft.Colors.GREY_100, border_radius=10))
+        productos_layout.controls.append(ft.Container(content=ft.Text(f"{nombre} | {categoria_input.value} | {marca_input.value or '-'} | {talla_input.value or '-'} | C${precio:.2f} | x{cantidad}"), padding=5, bgcolor="#F5F5F5", border_radius=10))
         nombre_prod_input.value = ""
         categoria_input.value = "General"
         marca_input.value = ""
@@ -568,7 +568,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
             mostrar_snackbar(
                 page,
                 "⚠️ Ya eres proveedor. Crear más tiendas es una función Pro de pago.",
-                color="orange",
+                color="#8A4B08",
             )
             return
 
@@ -642,7 +642,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
             mostrar_snackbar(
                 page,
                 "⚠️ Ya eres proveedor. Crear más tiendas es una función Pro de pago.",
-                color="orange",
+                color="#8A4B08",
             )
             return
 
@@ -722,7 +722,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
                     ft.ElevatedButton(
                         "Guardar",
                         on_click=guardar_tienda,
-                        bgcolor=ft.Colors.ORANGE_400,
+                        bgcolor="#FFA726",
                         style=ft.ButtonStyle(
                             padding=ft.Padding(left=24, right=24, top=0, bottom=0),
                         ),

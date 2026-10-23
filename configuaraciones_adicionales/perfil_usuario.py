@@ -18,7 +18,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
     """Vista para editar datos personales, cambiar contraseña e imagen de perfil"""
     configurar_retroceso(page, lambda: go_back(usuario))
     page.clean()
-    page.bgcolor = "white"
+    page.bgcolor = "#FFFFFF"
 
     fondo = ft.Container(
         expand=True,
@@ -37,7 +37,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
         telefono_input = ft.TextField(label="Teléfono", value=str(telefono_actual or ""), width=300)
         fecha_input = ft.TextField(label="Fecha de nacimiento", value=str(fecha_actual or ""), width=300)
         codigo_input = ft.TextField(label="Código de seguridad de esta sesión", password=True, width=300)
-        mensaje = ft.Text("", size=12, color="red")
+        mensaje = ft.Text("", size=12, color="#B3261E")
 
         # ACCIÓN: valida y guarda los datos personales en la base de datos.
         def guardar(e):
@@ -66,7 +66,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
             codigo_input.value = ""
             dialogo.open = False
             page.update()
-            mostrar_snackbar(page, "✅ Datos personales actualizados.", color="green")
+            mostrar_snackbar(page, "✅ Datos personales actualizados.", color="#1B5E20")
             perfil_usuario_view(page, usuario, go_back)
 
         # ACCIÓN: cierra el diálogo sin guardar cambios.
@@ -85,7 +85,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
             ),
             actions=[
                 ft.TextButton("↩️ Cancelar", on_click=cancelar),
-                ft.ElevatedButton("💾 Guardar", on_click=guardar, bgcolor="#040D4A", color="white"),
+                ft.ElevatedButton("💾 Guardar", on_click=guardar, bgcolor="#040D4A", color="#FFFFFF"),
             ],
         )
         page.overlay.append(dialogo)
@@ -98,7 +98,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
         "✏️ Editar datos personales",
         on_click=editar_datos_personales,
         bgcolor="#168AAD",
-        color="white",
+        color="#FFFFFF",
         height=36,
         width=240,
     )
@@ -107,7 +107,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
     nueva_pass = ft.TextField(label="Nueva contraseña", password=True, can_reveal_password=True, width=300)
     confirm_pass = ft.TextField(label="Confirmar contraseña", password=True, can_reveal_password=True, width=300, visible=False)
     codigo_pass = ft.TextField(label="Código de seguridad de esta sesión", password=True, can_reveal_password=False, width=300)
-    mensaje_pass = ft.Text("", size=12, color="red", visible=False)
+    mensaje_pass = ft.Text("", size=12, color="#B3261E", visible=False)
     en_confirmacion = False
     nueva_pass_contenedor = ft.Container(
         content=nueva_pass,
@@ -125,7 +125,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
         nonlocal en_confirmacion
         if not nueva_pass.value.strip():
             mensaje_pass.value = "Escribe una contraseña nueva para continuar 😊"
-            mensaje_pass.color = "#D84315"
+            mensaje_pass.color = "#B3261E"
             mensaje_pass.visible = True
             page.update()
             return
@@ -179,19 +179,19 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
             return
         if not confirm_pass.value.strip():
             mensaje_pass.value = "Confirma tu contraseña para continuar 😊"
-            mensaje_pass.color = "#D84315"
+            mensaje_pass.color = "#B3261E"
             mensaje_pass.visible = True
             page.update()
             return
         if nueva_pass.value != confirm_pass.value:
             mensaje_pass.value = "Las contraseñas no coinciden. Revisa e inténtalo nuevamente 😊"
-            mensaje_pass.color = "#D84315"
+            mensaje_pass.color = "#B3261E"
             mensaje_pass.visible = True
             page.update()
             return
         if not codigo_sesion_valido(page, codigo_pass.value.strip()):
             mensaje_pass.value = "🔐 El código de seguridad no es válido o ya expiró."
-            mensaje_pass.color = "#D84315"
+            mensaje_pass.color = "#B3261E"
             mensaje_pass.visible = True
             page.update()
             return
@@ -203,10 +203,10 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
             if not db.actualizar_contraseña_por_correo(correo_usuario, nueva_pass.value):
                 raise RuntimeError("No se encontró el usuario")
         except Exception as exc:
-            mostrar_snackbar(page, f"❌ No se pudo actualizar la contraseña. {exc}", color="red")
+            mostrar_snackbar(page, f"❌ No se pudo actualizar la contraseña. {exc}", color="#B3261E")
             return
 
-        mostrar_snackbar(page, "✅ Contraseña actualizada correctamente 😊", color="green", duracion=2500)
+        mostrar_snackbar(page, "✅ Contraseña actualizada correctamente 😊", color="#1B5E20", duracion=2500)
         await asyncio.sleep(0.06)
 
         def cerrar_dialog(e):
@@ -243,7 +243,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
             ], spacing=6, tight=True),
             actions=[
                 # BOTÓN: cierra el aviso de contraseña actualizada.
-                ft.ElevatedButton("Aceptar", on_click=cerrar_dialog, bgcolor="#040D4A", color="white")
+                ft.ElevatedButton("Aceptar", on_click=cerrar_dialog, bgcolor="#040D4A", color="#FFFFFF")
             ],
             actions_alignment=ft.MainAxisAlignment.CENTER,
         )
@@ -311,7 +311,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
     async def guardar_imagen_perfil(ruta):
         imagen_rel = await asyncio.to_thread(guardar_imagen_en_assets, ruta, "perfil")
         if not imagen_rel:
-            mostrar_snackbar(page, "❌ No se pudo preparar tu imagen de perfil.", color="red")
+            mostrar_snackbar(page, "❌ No se pudo preparar tu imagen de perfil.", color="#B3261E")
             return
 
         actualizado = await asyncio.to_thread(
@@ -320,13 +320,13 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
             imagen_rel,
         )
         if not actualizado:
-            mostrar_snackbar(page, "❌ No se pudo actualizar tu imagen de perfil.", color="red")
+            mostrar_snackbar(page, "❌ No se pudo actualizar tu imagen de perfil.", color="#B3261E")
             return
 
         perfil_imagen_control.content = ft.Image(src=imagen_rel, width=48, height=48, fit="cover")
         texto_imagen_perfil_control.value = "✏️ Editar imagen de perfil"
         page.update()
-        mostrar_snackbar(page, "✅ Imagen de perfil actualizada.", color="green")
+        mostrar_snackbar(page, "✅ Imagen de perfil actualizada.", color="#1B5E20")
 
     def procesar_imagen_perfil(ruta, image_data=None):
         if not ruta:
@@ -360,7 +360,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
         mostrar_snackbar(
             page,
             "✅ Avisos activados." if notificaciones_switch.value else "🔕 Avisos desactivados.",
-            color="green" if notificaciones_switch.value else "#555555",
+            color="#1B5E20" if notificaciones_switch.value else "#555555",
         )
 
     notificaciones_switch.on_change = cambiar_notificaciones

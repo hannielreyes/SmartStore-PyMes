@@ -9,20 +9,20 @@ def editar_tienda_view(page: ft.Page, usuario, tienda_id, go_back):
     # PANTALLA/DIÁLOGO: edición de datos generales, logo y acciones de guardado.
     configurar_retroceso(page, go_back)
     page.clean()
-    page.bgcolor = "white"
+    page.bgcolor = "#FFFFFF"
     # Mantener una base vacía en la página para que el flujo de cámara/galería
     # pueda restaurar el contenido de edición correctamente después de volver.
     page.add(ft.Container(height=0))
 
     fila_tienda = db.obtener_tienda_por_id(tienda_id)
     if not fila_tienda:
-        mostrar_snackbar(page, "❌ No tienes permiso para editar esta tienda.", color="red")
+        mostrar_snackbar(page, "❌ No tienes permiso para editar esta tienda.", color="#B3261E")
         go_back()
         return
 
     tienda = Tienda.desde_fila(fila_tienda)
     if tienda.usuario_id != usuario["id"]:
-        mostrar_snackbar(page, "❌ No tienes permiso para editar esta tienda.", color="red")
+        mostrar_snackbar(page, "❌ No tienes permiso para editar esta tienda.", color="#B3261E")
         go_back()
         return
 
@@ -31,14 +31,15 @@ def editar_tienda_view(page: ft.Page, usuario, tienda_id, go_back):
     direccion_input = ft.TextField(label="Dirección", value=str(tienda.direccion or ""), width=300)
     tasa_input = ft.TextField(label="Tasa de cambio", value=str(tienda.tasa_cambio or "36.5"), width=300)
     imagen_seleccionada = [tienda.imagen]
-    mensaje = ft.Text("", size=12, color="red")
+    mensaje = ft.Text("", size=12, color="#B3261E")
 
     # ACCIÓN: recibe y prepara el nuevo logo seleccionado.
     def recibir_logo(ruta, image_data=None):
         if ruta:
             imagen_seleccionada[0] = guardar_imagen_en_assets(ruta, prefijo="tienda_editada") or ruta
             mensaje.value = "✅ Logo seleccionado"
-            mensaje.color = "green"
+            mensaje.color = "#000000"
+            mensaje.weight = ft.FontWeight.BOLD
             page.update()
 
     # ACCIÓN: abre el selector de imágenes para cambiar el logo.
@@ -53,7 +54,8 @@ def editar_tienda_view(page: ft.Page, usuario, tienda_id, go_back):
     def quitar_logo(e):
         imagen_seleccionada[0] = None
         mensaje.value = "✅ El logo se quitará al guardar"
-        mensaje.color = "green"
+        mensaje.color = "#000000"
+        mensaje.weight = ft.FontWeight.BOLD
         page.update()
 
     # ACCIÓN: valida y guarda los cambios de la tienda.
@@ -66,7 +68,7 @@ def editar_tienda_view(page: ft.Page, usuario, tienda_id, go_back):
 
         if not nombre or tasa <= 0:
             mensaje.value = "⚠️ El nombre y la tasa deben ser válidos."
-            mensaje.color = "red"
+            mensaje.color = "#B3261E"
             page.update()
             return
 
@@ -80,13 +82,13 @@ def editar_tienda_view(page: ft.Page, usuario, tienda_id, go_back):
             imagen_seleccionada[0],
         ):
             mensaje.value = "❌ No se pudo actualizar la tienda."
-            mensaje.color = "red"
+            mensaje.color = "#B3261E"
             page.update()
             return
 
         dialogo.open = False
         page.update()
-        mostrar_snackbar(page, "✅ Tienda actualizada correctamente.", color="green")
+        mostrar_snackbar(page, "✅ Tienda actualizada correctamente.", color="#1B5E20")
         go_back()
 
     # ACCIÓN: cierra el diálogo y vuelve sin guardar cambios.
@@ -123,7 +125,7 @@ def editar_tienda_view(page: ft.Page, usuario, tienda_id, go_back):
             # BOTÓN: cancela la edición de la tienda.
             ft.TextButton("↩️ Cancelar", on_click=cancelar),
             # BOTÓN: guarda los datos modificados de la tienda.
-            ft.ElevatedButton("💾 Guardar", on_click=guardar, bgcolor="#040D4A", color="white"),
+            ft.ElevatedButton("💾 Guardar", on_click=guardar, bgcolor="#040D4A", color="#FFFFFF"),
         ],
     )
     page.overlay.append(dialogo)

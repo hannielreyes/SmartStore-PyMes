@@ -15,7 +15,7 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
     page._inventario_alerta_oculta = False
     page._reservas_alerta_terminada = False
     page.update()
-    page.bgcolor = "white"
+    page.bgcolor = "#FFFFFF"
     page.theme = tema_smartstore()
     page.update()
 
@@ -105,8 +105,8 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
                 ft.ElevatedButton(
                     "✅ Sí, cerrar sesión",
                     on_click=cerrar_sesion,
-                    bgcolor="#D84315",
-                    color="white",
+                    bgcolor="#B3261E",
+                    color="#FFFFFF",
                 ),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
@@ -131,7 +131,7 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
             tooltip="Ajustes Adicionales",
             width=42,
             height=42,
-            bgcolor="transparent",
+            bgcolor="#00000000",
         ),
         width=46,
         height=46,
@@ -152,8 +152,8 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
     textos_marca = ft.Row(
         [
             ft.Text("Smart", size=28, weight=ft.FontWeight.BOLD, color="#0A1A75"),
-            ft.Text(" Store", size=28, weight=ft.FontWeight.BOLD, color="#EFA520"),
-            ft.Text(" PyMEs", size=22, weight=ft.FontWeight.BOLD, color="#11C71A"),
+            ft.Text(" Store", size=28, weight=ft.FontWeight.BOLD, color="#000000"),
+            ft.Text(" PyMEs", size=22, weight=ft.FontWeight.BOLD, color="#000000"),
         ],
         alignment=ft.MainAxisAlignment.CENTER,
         visible=False,
@@ -198,7 +198,7 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
                         height=42,
                         style=ft.ButtonStyle(padding=ft.Padding(left=18, right=18, top=0, bottom=0)),
                         bgcolor="#040D4A",
-                        color="white",
+                        color="#FFFFFF",
                         on_click=lambda e, id_tienda=tienda_id: salir_del_menu(go_to_control_reservas, id_tienda, False, True),
                     ),
                 ],
@@ -214,7 +214,7 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
         height=55,
         alignment=ft.MainAxisAlignment.CENTER,
                 scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True),
-    ) if tiendas_botones else ft.Text("Aún no tienes tiendas. ¡Crea la primera! 😊", size=14, color="gray")
+    ) if tiendas_botones else ft.Text("Aún no tienes tiendas. ¡Crea la primera! 😊", size=14, color="#595959")
 
     # Estilo compartido por los botones principales del menú.
     menu_button_style = ft.ButtonStyle(
@@ -401,12 +401,12 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
                     [
                         ft.Text(f"Total de productos: {stock_total}", size=16, weight=ft.FontWeight.BOLD),
                         ft.Text("Estado del inventario", size=14, color="#555555"),
-                        ft.Text("Toca para ver detalle →", size=11, color="#888888", italic=True),
+                        ft.Text("Toca para ver detalle →", size=11, color="#595959", italic=True),
                     ],
                     spacing=5,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 ),
-                bgcolor=ft.Colors.WHITE,
+                bgcolor="#FFFFFF",
                 border_radius=15,
                 padding=15,
                 on_click=abrir_inventario,

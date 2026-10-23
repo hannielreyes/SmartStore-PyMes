@@ -9,7 +9,7 @@ def top_productos_view(page: ft.Page, usuario, go_back):
     # Pantalla de productos destacados según compras pagadas.
     configurar_retroceso(page, lambda: go_back(usuario))
     page.clean()
-    page.bgcolor = "white"
+    page.bgcolor = "#FFFFFF"
 
     fondo = ft.Container(
         expand=True,
@@ -45,11 +45,11 @@ def top_productos_view(page: ft.Page, usuario, go_back):
                             ft.Text(nombre, weight=ft.FontWeight.BOLD),
                             ft.Text(f"C${precio_c:.2f} / ${precio_d:.2f}"),
                             ft.Text(f"Compras: {compras}"),
-                            ft.Text(rating_text, color="#EFA520", weight=ft.FontWeight.BOLD),
+                            ft.Text(rating_text, color="#000000", weight=ft.FontWeight.BOLD),
                         ]),
                     ],
                 ),
-                bgcolor=ft.Colors.WHITE,
+                bgcolor="#FFFFFF",
                 border_radius=12,
                 padding=10,
             )

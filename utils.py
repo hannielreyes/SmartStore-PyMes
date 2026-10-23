@@ -143,17 +143,30 @@ def obtener_ruta_archivo(archivo):
 def mostrar_snackbar(page: ft.Page, mensaje, color=None, duracion=4000):
     if not page:
         return
+    es_exito = str(color).lower() in {"#1b5e20", "#2f9416"}
+    fondos_por_color = {
+        "#1b5e20": "#1B5E20",
+        "#b3261e": "#B3261E",
+        "#8A4B08": "#8A4B08",
+    }
+    fondo = fondos_por_color.get(str(color).lower(), color or "#1E1E1E")
     if isinstance(mensaje, ft.Text):
         content = mensaje
+        content.color = "#FFFFFF"
+        content.weight = ft.FontWeight.BOLD if es_exito else content.weight
     else:
         texto = str(mensaje)
         if not any(simbolo in texto for simbolo in ("✅", "❌", "⚠️", "😊", "💙", "🔎", "⏳", "📸", "💳", "❗")):
             texto = f"💙 {texto} 😊"
-        content = ft.Text(texto, color=color or "white")
+        content = ft.Text(
+            texto,
+            color="#FFFFFF",
+            weight=ft.FontWeight.BOLD if es_exito else ft.FontWeight.NORMAL,
+        )
     snackbar = ft.SnackBar(
         content=content,
         duration=duracion,
-        bgcolor="#1E1E1E",
+        bgcolor=fondo,
     )
     page.snack_bar = snackbar
     page.snack_bar.open = True
@@ -567,7 +580,7 @@ async def comprobar_actualizacion(page: ft.Page):
             ),
             actions=[
                 ft.TextButton("Cerrar", on_click=cerrar),
-                ft.ElevatedButton("Actualizar", on_click=actualizar, bgcolor="#168AAD", color="white"),
+                ft.ElevatedButton("Actualizar", on_click=actualizar, bgcolor="#168AAD", color="#040D4A"),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
@@ -645,7 +658,7 @@ def _mostrar_aviso_camara_no_disponible(page, on_cancel=None):
                 "Entendido 😊",
                 on_click=cerrar_aviso,
                 bgcolor="#040D4A",
-                color="white",
+                color="#FFFFFF",
             )
         ],
         actions_alignment=ft.MainAxisAlignment.CENTER,
@@ -694,7 +707,7 @@ def _abrir_selector_desktop(page, callback, title="Seleccionar imagen", on_cance
 
     def abrir_camara(e):
         cerrar_dialogo()
-        mostrar_snackbar(page, "💙 La cámara solo está disponible en Android. 📱✨", color="orange")
+        mostrar_snackbar(page, "💙 La cámara solo está disponible en Android. 📱✨", color="#8A4B08")
         _mostrar_aviso_camara_no_disponible(page, on_cancel=on_cancel)
 
     async def abrir_galeria(e):
@@ -713,12 +726,12 @@ def _abrir_selector_desktop(page, callback, title="Seleccionar imagen", on_cance
             archivo = archivos[0]
             ruta = archivo.path
             if not ruta:
-                mostrar_snackbar(page, "❌ No se pudo obtener la imagen seleccionada", color="red")
+                mostrar_snackbar(page, "❌ No se pudo obtener la imagen seleccionada", color="#B3261E")
                 return
 
             callback(str(Path(ruta).resolve()))
         except Exception as exc:
-            mostrar_snackbar(page, f"❌ Error al abrir la galería: {exc}", color="red")
+            mostrar_snackbar(page, f"❌ Error al abrir la galería: {exc}", color="#B3261E")
         finally:
             try:
                 if file_picker in page.services:
@@ -733,8 +746,8 @@ def _abrir_selector_desktop(page, callback, title="Seleccionar imagen", on_cance
         title=ft.Text(title),
         content=ft.Text("Elige una opción:"),
         actions=[
-            ft.ElevatedButton("📷 Cámara", on_click=abrir_camara, bgcolor="#040D4A", color="white"),
-            ft.ElevatedButton("🖼️ Galería", on_click=abrir_galeria, bgcolor="#168AAD", color="white"),
+            ft.ElevatedButton("📷 Cámara", on_click=abrir_camara, bgcolor="#040D4A", color="#FFFFFF"),
+            ft.ElevatedButton("🖼️ Galería", on_click=abrir_galeria, bgcolor="#168AAD", color="#040D4A"),
         ],
         actions_alignment=ft.MainAxisAlignment.CENTER,
     )
@@ -777,7 +790,7 @@ def _abrir_selector_fallback(page, callback, title="Seleccionar imagen", on_canc
         _limpiar_dialogos_selector_imagen(page)
         return True
     except Exception as exc:
-        mostrar_snackbar(page, f"❌ Error al abrir el selector del sistema: {exc}", color="red")
+        mostrar_snackbar(page, f"❌ Error al abrir el selector del sistema: {exc}", color="#B3261E")
         if on_cancel:
             on_cancel()
         return False
@@ -824,7 +837,7 @@ def _abrir_selector_android(page, callback, title="Seleccionar imagen", on_cance
             if ruta:
                 callback(str(Path(ruta).resolve()))
         except Exception as exc:
-            mostrar_snackbar(page, f"❌ Error al abrir la galería: {exc}", color="red")
+            mostrar_snackbar(page, f"❌ Error al abrir la galería: {exc}", color="#B3261E")
         finally:
             try:
                 if file_picker in page.services:
@@ -844,8 +857,8 @@ def _abrir_selector_android(page, callback, title="Seleccionar imagen", on_cance
         _abrir_camara_android(page, callback, on_cancel=finalizar_cancelacion)
 
     acciones = [
-        ft.ElevatedButton("📷 Cámara", on_click=abrir_camara, bgcolor="#040D4A", color="white"),
-        ft.ElevatedButton("🖼️ Galería", on_click=abrir_galeria, bgcolor="#168AAD", color="white"),
+        ft.ElevatedButton("📷 Cámara", on_click=abrir_camara, bgcolor="#040D4A", color="#FFFFFF"),
+        ft.ElevatedButton("🖼️ Galería", on_click=abrir_galeria, bgcolor="#168AAD", color="#040D4A"),
     ]
 
     dialogo = ft.AlertDialog(
@@ -919,12 +932,12 @@ def _abrir_selector_windows(page: ft.Page, callback, title="Seleccionar imagen",
         if ctypes.windll.comdlg32.GetOpenFileNameW(ctypes.byref(ofn)):
             callback(buffer.value)
         else:
-            mostrar_snackbar(page, "Selección cancelada. Puedes intentarlo nuevamente 😊", color="orange")
+            mostrar_snackbar(page, "Selección cancelada. Puedes intentarlo nuevamente 😊", color="#8A4B08")
             if on_cancel:
                 on_cancel()
     except Exception as exc:
         print(f"❌ Error en selector Windows: {exc}")
-        mostrar_snackbar(page, f"Error: {exc}", color="red")
+        mostrar_snackbar(page, f"Error: {exc}", color="#B3261E")
 
 
 def _abrir_camara_android(page: ft.Page, callback, on_cancel=None):
@@ -1005,7 +1018,7 @@ def _abrir_camara_android(page: ft.Page, callback, on_cancel=None):
                 with_data=True,
             )
             if not archivos:
-                mostrar_snackbar(page, "Selección cancelada", color="orange")
+                mostrar_snackbar(page, "Selección cancelada", color="#8A4B08")
                 return
 
             archivo = archivos[0]
@@ -1021,14 +1034,14 @@ def _abrir_camara_android(page: ft.Page, callback, on_cancel=None):
                     image_file.write(datos_imagen)
 
             if not ruta:
-                mostrar_snackbar(page, "❌ Android no entregó la imagen seleccionada", color="red")
+                mostrar_snackbar(page, "❌ Android no entregó la imagen seleccionada", color="#B3261E")
                 return
 
             await limpiar_camara()
             restaurar_pagina()
             callback(str(Path(ruta).resolve()))
         except Exception as ex:
-            mostrar_snackbar(page, f"❌ Error al seleccionar imagen: {ex}", color="red")
+            mostrar_snackbar(page, f"❌ Error al seleccionar imagen: {ex}", color="#B3261E")
 
     async def inicializar_camara():
         nonlocal camera
@@ -1044,7 +1057,7 @@ def _abrir_camara_android(page: ft.Page, callback, on_cancel=None):
             await camera.initialize(cameras[0], fc.ResolutionPreset.MEDIUM, enable_audio=False)
         except Exception as ex:
             camera_container.visible = False
-            mostrar_snackbar(page, f"❌ Error al inicializar cámara: {ex}", color="red")
+            mostrar_snackbar(page, f"❌ Error al inicializar cámara: {ex}", color="#B3261E")
             page.update()
             cerrar_con_retorno()
 
@@ -1062,10 +1075,10 @@ def _abrir_camara_android(page: ft.Page, callback, on_cancel=None):
             if ruta:
                 callback(str(Path(ruta).resolve()))
             if not ruta:
-                mostrar_snackbar(page, "No se capturó ninguna imagen. Inténtalo nuevamente 😊", color="orange")
+                mostrar_snackbar(page, "No se capturó ninguna imagen. Inténtalo nuevamente 😊", color="#8A4B08")
         except Exception as ex:
             print(f"❌ Error al capturar imagen async: {ex}")
-            mostrar_snackbar(page, f"Error al capturar imagen: {ex}", color="red")
+            mostrar_snackbar(page, f"Error al capturar imagen: {ex}", color="#B3261E")
             page.update()
             cerrar_con_retorno()
 
@@ -1074,7 +1087,7 @@ def _abrir_camara_android(page: ft.Page, callback, on_cancel=None):
             asyncio.create_task(_do_capture())
         except Exception as ex:
             print(f"❌ Error al iniciar captura: {ex}")
-            mostrar_snackbar(page, f"Error al iniciar captura: {ex}", color="red")
+            mostrar_snackbar(page, f"Error al iniciar captura: {ex}", color="#B3261E")
             page.update()
 
     def cerrar_camara(e=None):
@@ -1091,14 +1104,14 @@ def _abrir_camara_android(page: ft.Page, callback, on_cancel=None):
                 [
                     ft.Text("📸 Seleccionar imagen", size=24, weight=ft.FontWeight.BOLD),
                     camera_container,
-                    ft.Divider(height=20, color="transparent"),
+                    ft.Divider(height=20, color="#00000000"),
                     ft.Row(
                         [
                             ft.ElevatedButton(
                                 "🖼️ Abrir Galería",
                                 on_click=abrir_galeria_accion,
                                 bgcolor="#168AAD",
-                                color="white",
+                                color="#040D4A",
                                 width=180,
                             )
                         ],
@@ -1111,14 +1124,14 @@ def _abrir_camara_android(page: ft.Page, callback, on_cancel=None):
                                 "📸 Capturar",
                                 on_click=capturar,
                                 bgcolor="#EFA520",
-                                color="white",
+                                color="#040D4A",
                                 width=180,
                             ),
                             ft.ElevatedButton(
                                 "↩️ Cerrar",
                                 on_click=cerrar_camara,
-                                bgcolor="red",
-                                color="white",
+                                bgcolor="#B3261E",
+                                color="#FFFFFF",
                                 width=180,
                             ),
                         ],
@@ -1149,5 +1162,3 @@ def _abrir_camara_android(page: ft.Page, callback, on_cancel=None):
 #para empaquetar .\build_and_install.ps1 -BuildOnly
 
 #  .\.venv\Scripts\flet.exe run -d -r main.py --ignore-dirs build,.venv,.git,__pycache__
-
-

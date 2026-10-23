@@ -15,7 +15,7 @@ def recuperar_view(page: ft.Page, go_to_menu):
     configurar_retroceso(page, volver_login_desde_retroceso)
     page.clean()
     page.update()
-    page.bgcolor = "white"
+    page.bgcolor = "#FFFFFF"
 
     fondo = ft.Container(
         expand=True,
@@ -80,9 +80,11 @@ def recuperar_view(page: ft.Page, go_to_menu):
         "codigo_verificado": False,
     }
 
-    def mostrar_resultado(mensaje, color="red"):
+    def mostrar_resultado(mensaje, color="#B3261E"):
         resultado_texto.value = str(mensaje)
-        resultado_texto.color = color
+        es_exito = color.lower() == "#1b5e20"
+        resultado_texto.color = "#000000" if es_exito else color
+        resultado_texto.weight = ft.FontWeight.BOLD if es_exito else ft.FontWeight.NORMAL
         page.update()
 
     def mostrar_spinner_reconexion():
@@ -109,39 +111,39 @@ def recuperar_view(page: ft.Page, go_to_menu):
         confirmar_contraseña_field.visible = True
         ayuda_contrasena.visible = True
         btn_guardar_contrasena.visible = True
-        mostrar_resultado("✅ Código validado. Crea una nueva contraseña para iniciar sesión. 😊", "green")
+        mostrar_resultado("✅ Código validado. Crea una nueva contraseña para iniciar sesión. 😊", "#1B5E20")
         page.update()
 
     def validar_codigo_sesion(e=None):
         correo = (correo_field.value or "").strip()
         codigo = (codigo_sesion_field.value or "").strip()
         if not correo or not codigo:
-            mostrar_resultado("Escribe el correo de la cuenta y su código de sesión. 😊", "red")
+            mostrar_resultado("Escribe el correo de la cuenta y su código de sesión. 😊", "#B3261E")
             return
         if not db._supabase_activo():
-            mostrar_resultado("⚠️ La recuperación no está disponible porque Supabase no está activo.", "red")
+            mostrar_resultado("⚠️ La recuperación no está disponible porque Supabase no está activo.", "#B3261E")
             return
         try:
             if not db.validar_codigo_sesion_recuperacion_auth(correo, codigo):
-                mostrar_resultado("❌ El correo o el código de sesión no coincide.", "red")
+                mostrar_resultado("❌ El correo o el código de sesión no coincide.", "#B3261E")
                 return
         except RuntimeError as exc:
-            mostrar_resultado(f"⚠️ No se pudo validar el código de sesión: {exc}", "red")
+            mostrar_resultado(f"⚠️ No se pudo validar el código de sesión: {exc}", "#B3261E")
             return
         mostrar_paso_contrasena("sesion", codigo)
 
     def enviar_codigo_correo(e=None):
         correo = (correo_field.value or "").strip()
         if not correo:
-            mostrar_resultado("Escribe el correo donde quieres recibir el código. 😊", "red")
+            mostrar_resultado("Escribe el correo donde quieres recibir el código. 😊", "#B3261E")
             return
         if not db._supabase_activo():
-            mostrar_resultado("⚠️ La recuperación no está disponible porque Supabase no está activo.", "red")
+            mostrar_resultado("⚠️ La recuperación no está disponible porque Supabase no está activo.", "#B3261E")
             return
         mostrar_spinner_temporal()
         try:
             if not db.solicitar_codigo_recuperacion_auth(correo):
-                mostrar_resultado("⚠️ No se pudo iniciar la recuperación de contraseña.", "red")
+                mostrar_resultado("⚠️ No se pudo iniciar la recuperación de contraseña.", "#B3261E")
                 return
         except RuntimeError as exc:
             ocultar_spinner_reconexion()
@@ -152,14 +154,14 @@ def recuperar_view(page: ft.Page, go_to_menu):
                 mensaje = "Supabase no pudo enviar el correo. Revisa la configuración del proveedor de email."
             else:
                 mensaje = f"No se pudo enviar el código: {exc}"
-            mostrar_resultado(f"⚠️ {mensaje}", "red")
+            mostrar_resultado(f"⚠️ {mensaje}", "#B3261E")
             return
 
         datos_recuperados["correo_codigo_email"] = correo
         codigo_correo_field.value = ""
         codigo_correo_field.visible = True
         btn_validar_codigo_correo.visible = True
-        mostrar_resultado("✅ Si el correo está registrado, recibirás el código. Revisa también spam.", "green")
+        mostrar_resultado("✅ Si el correo está registrado, recibirás el código. Revisa también spam.", "#1B5E20")
         page.update()
 
     def validar_codigo_correo(e=None):
@@ -167,17 +169,17 @@ def recuperar_view(page: ft.Page, go_to_menu):
         correo_enviado = datos_recuperados["correo_codigo_email"]
         codigo = (codigo_correo_field.value or "").strip()
         if not correo_enviado or correo.casefold() != correo_enviado.casefold():
-            mostrar_resultado("Envía el código al correo que escribiste antes de validarlo. 😊", "red")
+            mostrar_resultado("Envía el código al correo que escribiste antes de validarlo. 😊", "#B3261E")
             return
         if not codigo:
-            mostrar_resultado("Escribe el código que recibiste por correo. 😊", "red")
+            mostrar_resultado("Escribe el código que recibiste por correo. 😊", "#B3261E")
             return
         try:
             if not db.validar_codigo_recuperacion_auth(correo_enviado, codigo):
-                mostrar_resultado("❌ El código del correo no coincide o ya venció.", "red")
+                mostrar_resultado("❌ El código del correo no coincide o ya venció.", "#B3261E")
                 return
         except RuntimeError as exc:
-            mostrar_resultado(f"⚠️ No se pudo validar el código del correo: {exc}", "red")
+            mostrar_resultado(f"⚠️ No se pudo validar el código del correo: {exc}", "#B3261E")
             return
         mostrar_paso_contrasena("correo", "")
 
@@ -186,16 +188,16 @@ def recuperar_view(page: ft.Page, go_to_menu):
         nueva_contraseña = nueva_contraseña_field.value or ""
         confirmar_contraseña = confirmar_contraseña_field.value or ""
         if not datos_recuperados["codigo_verificado"]:
-            mostrar_resultado("Primero valida el código de recuperación. 😊", "red")
+            mostrar_resultado("Primero valida el código de recuperación. 😊", "#B3261E")
             return
         if not nueva_contraseña:
-            mostrar_resultado("Escribe una nueva contraseña. 😊", "red")
+            mostrar_resultado("Escribe una nueva contraseña. 😊", "#B3261E")
             return
         if len(nueva_contraseña) < 6:
-            mostrar_resultado("La contraseña debe tener al menos 6 caracteres. 😊", "red")
+            mostrar_resultado("La contraseña debe tener al menos 6 caracteres. 😊", "#B3261E")
             return
         if nueva_contraseña != confirmar_contraseña:
-            mostrar_resultado("❌ Las contraseñas no coinciden. 😊", "red")
+            mostrar_resultado("❌ Las contraseñas no coinciden. 😊", "#B3261E")
             return
         try:
             if datos_recuperados["metodo"] == "sesion":
@@ -207,10 +209,10 @@ def recuperar_view(page: ft.Page, go_to_menu):
             else:
                 actualizada = db.establecer_contraseña_auth(nueva_contraseña)
             if not actualizada:
-                mostrar_resultado("❌ Supabase no pudo cambiar la contraseña. Solicita un código nuevo e inténtalo otra vez.", "red")
+                mostrar_resultado("❌ Supabase no pudo cambiar la contraseña. Solicita un código nuevo e inténtalo otra vez.", "#B3261E")
                 return
         except RuntimeError as exc:
-            mostrar_resultado(f"⚠️ No se pudo cambiar la contraseña: {exc}", "red")
+            mostrar_resultado(f"⚠️ No se pudo cambiar la contraseña: {exc}", "#B3261E")
             return
         from views.login import login_view
         login_view(page, None, go_to_menu, correo, nueva_contraseña)

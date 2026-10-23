@@ -12,7 +12,7 @@ PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "").strip()
 def _dialogo_codigo(page, codigo):
     def copiar(_):
         page.run_task(page.clipboard.set, codigo)
-        mostrar_snackbar(page, "Código copiado.", color="green")
+        mostrar_snackbar(page, "Código copiado.", color="#1B5E20")
 
     dlg = ft.AlertDialog(
         modal=True,
@@ -42,10 +42,10 @@ def iniciar_pago_reserva(page, reserva_id, tienda_id, total, go_back):
     def finalizar():
         ok, mensaje, codigo = db.procesar_pago_reserva(reserva_id, total, tienda_id)
         if ok:
-            mostrar_snackbar(page, "Pago confirmado. Tu código de retiro está listo.", color="green")
+            mostrar_snackbar(page, "Pago confirmado. Tu código de retiro está listo.", color="#1B5E20")
             _dialogo_codigo(page, codigo)
         else:
-            mostrar_snackbar(page, mensaje, color="red")
+            mostrar_snackbar(page, mensaje, color="#B3261E")
 
     if not paypal_email:
         db.eliminar_reserva(reserva_id)
@@ -84,11 +84,11 @@ def iniciar_pago_reserva(page, reserva_id, tienda_id, total, go_back):
 
     def verificar(_):
         if client is None:
-            mostrar_snackbar(page, "No se pudo conectar con PayPal. Cancela y vuelve a intentar.", color="red")
+            mostrar_snackbar(page, "No se pudo conectar con PayPal. Cancela y vuelve a intentar.", color="#B3261E")
             return
         if not db.reserva_pago_vigente(reserva_id):
             db.cancelar_reservas_vencidas()
-            mostrar_snackbar(page, "El tiempo de pago terminó. No se cobró y el producto volvió a estar disponible.", color="orange", duracion=6000)
+            mostrar_snackbar(page, "El tiempo de pago terminó. No se cobró y el producto volvió a estar disponible.", color="#8A4B08", duracion=6000)
             dlg.open = False
             page.update()
             return
@@ -99,9 +99,9 @@ def iniciar_pago_reserva(page, reserva_id, tienda_id, total, go_back):
                 dlg.open = False
                 page.update()
             else:
-                mostrar_snackbar(page, "PayPal todavía no confirma el pago.", color="orange")
+                mostrar_snackbar(page, "PayPal todavía no confirma el pago.", color="#8A4B08")
         except Exception:
-            mostrar_snackbar(page, "PayPal aún no confirma el pago. Completa el proceso y vuelve a verificar.", color="orange")
+            mostrar_snackbar(page, "PayPal aún no confirma el pago. Completa el proceso y vuelve a verificar.", color="#8A4B08")
 
     def cancelar(_):
         db.eliminar_reserva(reserva_id)
@@ -116,7 +116,7 @@ def iniciar_pago_reserva(page, reserva_id, tienda_id, total, go_back):
         acciones.append(ft.ElevatedButton("Pago de prueba", on_click=lambda e: (finalizar(), setattr(dlg, "open", False), page.update())))
     else:
         db.eliminar_reserva(reserva_id)
-        mostrar_snackbar(page, "PayPal no está configurado. La reserva temporal se canceló y el stock fue liberado.", color="red", duracion=6000)
+        mostrar_snackbar(page, "PayPal no está configurado. La reserva temporal se canceló y el stock fue liberado.", color="#B3261E", duracion=6000)
         return
     dlg = ft.AlertDialog(modal=True, title=ft.Text("Completa el pago"), content=ft.Text(f"Total: C${total:.2f}. El producto queda apartado por 10 minutos."), actions=acciones)
     page.overlay.append(dlg)
@@ -127,7 +127,7 @@ def iniciar_pago_reserva(page, reserva_id, tienda_id, total, go_back):
 def carrito_view(page: ft.Page, usuario, go_back):
     configurar_retroceso(page, lambda: go_back(usuario))
     page.clean()
-    page.bgcolor = "white"
+    page.bgcolor = "#FFFFFF"
     db.cancelar_reservas_vencidas()
     lista = ft.Column(spacing=10, scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True), expand=True)
     total_text = ft.Text("Total: C$0.00 / $0.00", weight=ft.FontWeight.BOLD)
@@ -145,8 +145,8 @@ def carrito_view(page: ft.Page, usuario, go_back):
         total_c += subtotal_c
         total_d += subtotal_d
         codigo = compra.codigo_retiro
-        codigo_view = ft.Row([ft.Text(f"Código de retiro: {codigo}", weight=ft.FontWeight.BOLD), ft.IconButton(ft.Icons.COPY, tooltip="Copiar", on_click=lambda e, c=codigo: (page.run_task(page.clipboard.set, c), mostrar_snackbar(page, "Código copiado.", color="green")))]) if codigo else ft.Text("Entrega completada")
-        lista.controls.append(ft.Container(content=ft.Column([ft.Text(f"{compra.producto or 'Producto'} × {compra.cantidad}", weight=ft.FontWeight.BOLD), ft.Text(f"Total: C${subtotal_c:.2f} / ${subtotal_d:.2f}"), ft.Text(f"Estado: {compra.estado}"), codigo_view], spacing=5), bgcolor=ft.Colors.WHITE, border_radius=12, padding=12))
+        codigo_view = ft.Row([ft.Text(f"Código de retiro: {codigo}", weight=ft.FontWeight.BOLD), ft.IconButton(ft.Icons.COPY, tooltip="Copiar", on_click=lambda e, c=codigo: (page.run_task(page.clipboard.set, c), mostrar_snackbar(page, "Código copiado.", color="#1B5E20")))]) if codigo else ft.Text("Entrega completada")
+        lista.controls.append(ft.Container(content=ft.Column([ft.Text(f"{compra.producto or 'Producto'} × {compra.cantidad}", weight=ft.FontWeight.BOLD), ft.Text(f"Total: C${subtotal_c:.2f} / ${subtotal_d:.2f}"), ft.Text(f"Estado: {compra.estado}"), codigo_view], spacing=5), bgcolor="#FFFFFF", border_radius=12, padding=12))
     if error_carga and ("42703" in error_carga or "migración" in error_carga.lower()):
         lista.controls.append(
             ft.Text(
@@ -159,7 +159,14 @@ def carrito_view(page: ft.Page, usuario, go_back):
     elif error_carga:
         lista.controls.append(ft.Text("No se pudieron cargar tus compras porque Supabase no está disponible.", color="#B45309", text_align=ft.TextAlign.CENTER))
     elif not filas:
-        lista.controls.append(ft.Text("Aún no tienes compras pagadas.", color="#555555"))
+        lista.controls.append(
+            ft.Text(
+                "Aún no tienes compras pagadas.",
+                size=17,
+                weight=ft.FontWeight.BOLD,
+                color="#0F0101",
+            )
+        )
     total_text.value = f"Total: C${total_c:.2f} / ${total_d:.2f}"
     btn_volver_menu = ft.ElevatedButton(
         "↩️ Volver al Menú",

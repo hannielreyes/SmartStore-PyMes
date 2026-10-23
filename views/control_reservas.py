@@ -12,7 +12,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
     # PANTALLA: panel de vendedor, billetera, reservas e historial de entregas.
     configurar_retroceso(page, go_to_perfil)
     page.clean()
-    page.bgcolor = "white"
+    page.bgcolor = "#FFFFFF"
 
     # BOTONES DE RESERVAS Y BILLETERA: entregas, estados y navegación de tienda.
     ancho_btn_entrega = 220
@@ -81,7 +81,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                                 ft.Text("🔄 Una vez vinculada, podrás ver tu saldo y gestionar tus entregas desde aquí.", size=14, color="#555555"),
                             ], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                             padding=25,
-                            bgcolor=ft.Colors.WHITE,
+                            bgcolor="#FFFFFF",
                             border_radius=15,
                             width=400,
                         )
@@ -122,7 +122,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                 saldo_text,
             ], spacing=5, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
             padding=20,
-            bgcolor=ft.Colors.WHITE,
+            bgcolor="#FFFFFF",
             border_radius=15,
             width=400,
         )
@@ -134,7 +134,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
 
     def canjear_codigo(_):
         ok, mensaje = db.canjear_codigo_retiro(tienda_id, usuario_id, codigo_retiro_field.value)
-        mostrar_snackbar(page, mensaje, color="green" if ok else "red", duracion=5000)
+        mostrar_snackbar(page, mensaje, color="#1B5E20" if ok else "#B3261E", duracion=5000)
         if ok:
             codigo_retiro_field.value = ""
             cargar_por_entregar()
@@ -147,7 +147,12 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
 
         if not reservas:
             lista_por_entregar.controls.append(
-                ft.Text("✅ No hay reservas pendientes de entrega por ahora.", size=14, color="green")
+                ft.Text(
+                    "✅ No hay reservas pendientes de entrega por ahora.",
+                    size=14,
+                    color="#000000",
+                    weight=ft.FontWeight.BOLD,
+                )
             )
             page.update()
             return
@@ -168,10 +173,10 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
             def cambiar_estado(id_reserva, estado_nuevo, mensaje_exito):
                 def ejecutar(e):
                     if db.cambiar_estado_reserva(id_reserva, estado_nuevo):
-                        mostrar_snackbar(page, mensaje_exito, color="green")
+                        mostrar_snackbar(page, mensaje_exito, color="#1B5E20")
                         cargar_por_entregar()
                     else:
-                        mostrar_snackbar(page, "❌ No se pudo actualizar el estado del pedido.", color="red")
+                        mostrar_snackbar(page, "❌ No se pudo actualizar el estado del pedido.", color="#B3261E")
                 return ejecutar
 
             acciones_estado = []
@@ -181,7 +186,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                         "📦 Marcar como Preparando",
                         on_click=cambiar_estado(id_reserva=rid, estado_nuevo="Preparando", mensaje_exito="✅ Pedido marcado como preparando."),
                         bgcolor="#087E9B",
-                        color="white",
+                        color="#FFFFFF",
                     )
                 )
             elif estado == "Preparando":
@@ -190,7 +195,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                         "✅ Listo para entregar",
                         on_click=cambiar_estado(id_reserva=rid, estado_nuevo="Listo para entregar", mensaje_exito="✅ Pedido listo para entregar."),
                         bgcolor="#087E9B",
-                        color="white",
+                        color="#FFFFFF",
                     )
                 )
 
@@ -199,7 +204,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                     ft.Text(f"#{rid} - {producto}", size=16, weight=ft.FontWeight.BOLD),
                     ft.Text(f"👤 Cliente: {usuario_nombre}", size=13, color="#555555"),
                     ft.Text(f"📦 Cantidad: {cantidad}  |  💰 Total: C${total:.2f}", size=13),
-                    ft.Text(f"📅 Compra: {fecha_compra}", size=11, color="gray"),
+                    ft.Text(f"📅 Compra: {fecha_compra}", size=11, color="#595959"),
                     ft.Text(
                         "📦 Pago confirmado: pendiente de preparación."
                         if estado == "Pagado"
@@ -207,12 +212,13 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                         if estado == "Preparando"
                         else "✅ Listo para entregar.",
                         size=12,
-                        color="green",
+                        color="#000000",
+                        weight=ft.FontWeight.BOLD,
                     ),
                     *acciones_estado,
                     ft.Text("El cliente debe mostrar su código para confirmar el retiro.", size=12, color="#555555") if estado == "Listo para entregar" else ft.Container(),
                 ], spacing=5),
-                bgcolor=ft.Colors.WHITE,
+                bgcolor="#FFFFFF",
                 border_radius=15,
                 padding=12,
                 width=350,
@@ -229,7 +235,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
 
         if not entregadas:
             lista_entregadas.controls.append(
-                ft.Text("📭 Todavía no hay entregas completadas en esta tienda.", size=14, color="gray")
+                ft.Text("📭 Todavía no hay entregas completadas en esta tienda.", size=14, color="#595959")
             )
             page.update()
             return
@@ -251,9 +257,14 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                     ft.Text(f"#{rid} - {producto}", size=15, weight=ft.FontWeight.BOLD),
                     ft.Text(f"👤 Cliente: {usuario_nombre}", size=13, color="#555555"),
                     ft.Text(f"📦 Cantidad: {cantidad}  |  💰 Total: C${total:.2f}", size=13),
-                    ft.Text(f"✅ Entregado: {fecha_entrega}", size=11, color="green"),
+                    ft.Text(
+                        f"✅ Entregado: {fecha_entrega}",
+                        size=11,
+                        color="#000000",
+                        weight=ft.FontWeight.BOLD,
+                    ),
                 ], spacing=3),
-                bgcolor=ft.Colors.WHITE,
+                bgcolor="#FFFFFF",
                 border_radius=15,
                 padding=12,
                 width=350,
@@ -291,14 +302,14 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                 if not eliminado:
                     dialogo.open = False
                     page.update()
-                    mostrar_snackbar(page, f"⚠️ {mensaje}", color="orange")
+                    mostrar_snackbar(page, f"⚠️ {mensaje}", color="#8A4B08")
                     return
                 dialogo.open = False
                 page.update()
-                mostrar_snackbar(page, f"✅ {mensaje} 😊", color="green")
+                mostrar_snackbar(page, f"✅ {mensaje} 😊", color="#1B5E20")
                 go_to_menu()
             except Exception as exc:
-                mostrar_snackbar(page, f"❌ No se pudo eliminar la tienda: {exc}", color="red")
+                mostrar_snackbar(page, f"❌ No se pudo eliminar la tienda: {exc}", color="#B3261E")
 
         if saldo > 0:
             dialogo = ft.AlertDialog(
@@ -310,7 +321,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                     size=14,
                     color="#555555",
                 ),
-                actions=[ft.TextButton("↩️ Volver", on_click=volver), ft.ElevatedButton("💰 Ir a Mi Perfil", on_click=ir_a_billetera, bgcolor="#7042B8", color="white")],
+                actions=[ft.TextButton("↩️ Volver", on_click=volver), ft.ElevatedButton("💰 Ir a Mi Perfil", on_click=ir_a_billetera, bgcolor="#7042B8", color="#FFFFFF")],
                 actions_alignment=ft.MainAxisAlignment.END,
             )
         else:
@@ -322,7 +333,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                     size=14,
                     color="#555555",
                 ),
-                actions=[ft.TextButton("↩️ Volver", on_click=volver), ft.ElevatedButton("🗑️ Sí, eliminar", on_click=eliminar, bgcolor="#C62845", color="white")],
+                actions=[ft.TextButton("↩️ Volver", on_click=volver), ft.ElevatedButton("🗑️ Sí, eliminar", on_click=eliminar, bgcolor="#C62845", color="#FFFFFF")],
                 actions_alignment=ft.MainAxisAlignment.END,
             )
         page.overlay.append(dialogo)
@@ -346,7 +357,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
         ft.Text(f"Tasa de cambio: {tienda.tasa_cambio or 'No indicada'}", size=14, color="#555555"),
     ]
     if not mostrar_billetera:
-        contenido_principal.append(ft.ElevatedButton("✏️ Editar tienda", on_click=editar_tienda, bgcolor="#7042B8", color="white"))
+        contenido_principal.append(ft.ElevatedButton("✏️ Editar tienda", on_click=editar_tienda, bgcolor="#7042B8", color="#FFFFFF"))
     if mostrar_billetera:
         contenido_principal.extend([ft.Divider(height=10), billetera_card])
     if mostrar_entregas:
@@ -354,7 +365,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
             ft.Divider(height=10),
             ft.Text("📋 Reservas por Entregar", size=18, weight=ft.FontWeight.BOLD, color="#040D4A"),
             ft.Text("Confirma el pago y registra la entrega con el código de retiro:", size=13, color="#555555"),
-            ft.Row([codigo_retiro_field, ft.ElevatedButton("Validar y entregar", on_click=canjear_codigo, bgcolor="#007A61", color="white")], wrap=True, alignment=ft.MainAxisAlignment.CENTER),
+            ft.Row([codigo_retiro_field, ft.ElevatedButton("Validar y entregar", on_click=canjear_codigo, bgcolor="#007A61", color="#FFFFFF")], wrap=True, alignment=ft.MainAxisAlignment.CENTER),
             lista_por_entregar,
             ft.Divider(height=10),
             ft.Text("✅ Historial de Entregas Completadas", size=18, weight=ft.FontWeight.BOLD, color="#040D4A"),
@@ -367,7 +378,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                 "🗑️ Eliminar tienda",
                 on_click=confirmar_eliminacion_tienda,
                 bgcolor="#C62845",
-                color="white",
+                color="#FFFFFF",
             )
         )
     contenido_desplazable = ft.Column(

@@ -12,7 +12,7 @@ from views.carrito import iniciar_pago_reserva
 def reservar_view(page: ft.Page, usuario, producto_id, producto_nombre, producto_stock, go_back):
     configurar_retroceso(page, go_back)
     page.clean()
-    page.bgcolor = "white"
+    page.bgcolor = "#FFFFFF"
     producto_fila = db.obtener_producto_por_id(producto_id)
     producto = ProductoReserva.desde_fila(producto_fila) if producto_fila else None
     precio = float(producto.precio_cordobas or 0) if producto else 0.0
@@ -48,10 +48,10 @@ def reservar_view(page: ft.Page, usuario, producto_id, producto_nombre, producto
             if estado != anterior:
                 anterior = estado
                 if estado == "disponible":
-                    mostrar_snackbar(page, "El producto volvió a estar disponible.", color="green", duracion=6000)
+                    mostrar_snackbar(page, "El producto volvió a estar disponible.", color="#1B5E20", duracion=6000)
                     return
                 if estado == "no_disponible":
-                    mostrar_snackbar(page, "El producto ya no está disponible.", color="orange", duracion=6000)
+                    mostrar_snackbar(page, "El producto ya no está disponible.", color="#8A4B08", duracion=6000)
                     return
 
     def mostrar_espera(mensaje):
@@ -72,10 +72,10 @@ def reservar_view(page: ft.Page, usuario, producto_id, producto_nombre, producto
         try:
             cant = int(cantidad.value)
         except (TypeError, ValueError):
-            mostrar_snackbar(page, "Ingresa una cantidad válida.", color="red")
+            mostrar_snackbar(page, "Ingresa una cantidad válida.", color="#B3261E")
             return
         if not producto or not tienda_id or not 1 <= cant <= producto_stock:
-            mostrar_snackbar(page, "La cantidad indicada no está disponible.", color="red")
+            mostrar_snackbar(page, "La cantidad indicada no está disponible.", color="#B3261E")
             return
         creada, mensaje, reserva_id = db.agregar_reserva(usuario["id"], producto_id, cant, tienda_id)
         if not creada:
@@ -103,4 +103,4 @@ def reservar_view(page: ft.Page, usuario, producto_id, producto_nombre, producto
         spacing=14,
         scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True),
     )
-    page.add(ft.Stack([ft.Container(expand=True, image=ft.DecorationImage(src="fondopro_Copy.png", fit="cover")), ft.SafeArea(ft.Container(contenido, padding=20))], expand=True))
+    page.add(ft.Stack([ft.Container(expand=True, image=ft.DecorationImage(src="fondopro.png", fit="cover")), ft.SafeArea(ft.Container(contenido, padding=20))], expand=True))

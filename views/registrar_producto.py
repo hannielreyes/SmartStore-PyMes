@@ -16,7 +16,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
     # PANTALLA: formulario de productos y calculadora de precios.
     configurar_retroceso(page, lambda: go_back(usuario))
     page.clean()
-    page.bgcolor = "white"
+    page.bgcolor = "#FFFFFF"
     page.overlay.clear()
     print 
 
@@ -41,7 +41,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
                     "Entendido 😊",
                     on_click=lambda e: (setattr(dlg, "open", False), page.update()),
                     bgcolor="#040D4A",
-                    color="white",
+                    color="#FFFFFF",
                 )
             ],
             actions_alignment=ft.MainAxisAlignment.CENTER,
@@ -98,7 +98,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
     precio_input_cal = ft.TextField(label="Monto que deseas convertir", width=300, visible=False)
     porcentaje_input_cal = ft.TextField(label="Porcentaje que deseas calcular (opcional)", width=300, visible=False)
 
-    resultado_texto = ft.Text("", color="green")
+    resultado_texto = ft.Text("", color="#000000")
     imagen_producto_path = None
     imagen_producto_data = None
     imagen_producto_2_path = None
@@ -270,7 +270,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
             if imagen_producto_2_path:
                 btn_reemplazar_imagen.text = "Reemplazar imagen 1"
                 btn_quitar_imagen.text = "Quitar imagen 1"
-            mostrar_snackbar(page, "✅ Imagen cargada correctamente", color="green")
+            mostrar_snackbar(page, "✅ Imagen cargada correctamente", color="#1B5E20")
             page.update()
 
     def procesar_imagen_2(ruta, image_data=None):
@@ -297,7 +297,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
         imagen_preview.visible = False
         btn_reemplazar_imagen.visible = False
         btn_quitar_imagen.visible = False
-        mostrar_snackbar(page, "✅ Imagen quitada correctamente 😊", color="green")
+        mostrar_snackbar(page, "✅ Imagen quitada correctamente 😊", color="#1B5E20")
         page.update()
 
     def quitar_imagen_2(e):
@@ -333,12 +333,12 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
         datos = normalizar_datos_imagen(image_data)
         modal = ft.Container(
             expand=True,
-            bgcolor="white",
+            bgcolor="#FFFFFF",
             content=ft.Container(
                 content=ft.Image(**obtener_fuente_imagen(ruta, image_data), fit="contain"),
                 width=340,
                 height=520,
-                bgcolor="white",
+                bgcolor="#FFFFFF",
                 padding=10,
                 alignment=ft.Alignment(0, 0),
             ),
@@ -377,7 +377,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
             await camera.initialize(cameras[0], fc.ResolutionPreset.MEDIUM, enable_audio=False)
         except Exception as ex:
             camera_container.visible = False
-            mostrar_snackbar(page, f"❌ Error al abrir cámara: {ex}", color="red")
+            mostrar_snackbar(page, f"❌ Error al abrir cámara: {ex}", color="#B3261E")
 
     async def capturar_foto(e):
         if camera:
@@ -386,7 +386,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
                 await limpiar_camara()
                 procesar_imagen_capturada(image_data)
             except Exception as ex:
-                mostrar_snackbar(page, f"❌ Error al capturar: {ex}", color="red")
+                mostrar_snackbar(page, f"❌ Error al capturar: {ex}", color="#B3261E")
 
     def cerrar_camara(e):
         asyncio.create_task(limpiar_camara())
@@ -406,7 +406,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
                     mostrar_snackbar(
                         page,
                         "🎥 Por ahora solo puedes agregar imágenes. Los videos aún no están disponibles 😊",
-                        color="orange",
+                        color="#8A4B08",
                     )
                     return
                 ruta = archivo.path
@@ -418,14 +418,14 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
                     with open(ruta, "wb") as image_file:
                         image_file.write(datos_imagen)
                 if not ruta:
-                    mostrar_snackbar(page, "❌ No se pudo obtener la imagen seleccionada", color="red")
+                    mostrar_snackbar(page, "❌ No se pudo obtener la imagen seleccionada", color="#B3261E")
                     return
                 await limpiar_camara()
                 restaurar_formulario()
                 if destino_imagen:
                     destino_imagen(ruta, datos_imagen)
         except Exception as ex:
-            mostrar_snackbar(page, f"❌ Error al abrir galería: {ex}", color="red")
+            mostrar_snackbar(page, f"❌ Error al abrir galería: {ex}", color="#B3261E")
 
     def mostrar_interfaz_camara(callback_imagen):
         nonlocal destino_imagen
@@ -441,15 +441,15 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
                         camera_container,
                         ft.Row(
                             [
-                                ft.ElevatedButton("🖼️ Abrir Galería", on_click=abrir_galeria_accion, bgcolor="#168AAD", color="white", width=180),
+                                ft.ElevatedButton("🖼️ Abrir Galería", on_click=abrir_galeria_accion, bgcolor="#168AAD", color="#040D4A", width=180),
                             ],
                             alignment=ft.MainAxisAlignment.CENTER,
                             spacing=10,
                         ),
                         ft.Row(
                             [
-                                ft.ElevatedButton("📸 Capturar", on_click=capturar_foto, bgcolor="#EFA520", color="white", width=180),
-                                ft.ElevatedButton("↩️ Cerrar", on_click=cerrar_camara, bgcolor="red", color="white", width=180),
+                                ft.ElevatedButton("📸 Capturar", on_click=capturar_foto, bgcolor="#EFA520", color="#040D4A", width=180),
+                                ft.ElevatedButton("↩️ Cerrar", on_click=cerrar_camara, bgcolor="#B3261E", color="#FFFFFF", width=180),
                             ],
                             alignment=ft.MainAxisAlignment.CENTER,
                             spacing=10,
@@ -535,7 +535,8 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
                 descripcion, estado_producto, etiquetas, None, color_principal, material, garantia, especificacion,
             )
             resultado_texto.value = f"✅ '{nombre}' registrado con éxito."
-            resultado_texto.color = "green"
+            resultado_texto.color = "#000000"
+            resultado_texto.weight = ft.FontWeight.BOLD
             nombre_input_reg.value = ""
             marca_input.value = ""
             talla_input.value = ""
@@ -563,7 +564,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
             page.update()
         except Exception as e:
             print(f"❌ Error al registrar producto: {e}")
-            mostrar_snackbar(page, f"❌ Error al registrar: {e}", color="red")
+            mostrar_snackbar(page, f"❌ Error al registrar: {e}", color="#B3261E")
 
     def mostrar_dialogo_tienda(nombre, marca, talla, precio, precio_dolares, cantidad, descripcion="", estado_producto="Nuevo", etiquetas="", color_principal="", material="", garantia="", especificacion=""):
         tiendas_usuario = db.obtener_tiendas_usuario(usuario['id'])
@@ -585,7 +586,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
                     f"🏪 {t.nombre}",
                     on_click=hacer_seleccion(t.id),
                     bgcolor="#040D4A",
-                    color="white",
+                    color="#FFFFFF",
                     width=250,
                 )
             )
@@ -611,7 +612,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
                 nombre = nombre_input_reg.value.strip()
                 if not nombre:
                     resultado_texto.value = "Ingrese el nombre del producto"
-                    resultado_texto.color = "red"
+                    resultado_texto.color = "#B3261E"
                     page.update()
                     return
                 try:
@@ -619,7 +620,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
                     cantidad = int(cantidad_input.value)
                 except:
                     resultado_texto.value = "Precio y cantidad deben ser números válidos"
-                    resultado_texto.color = "red"
+                    resultado_texto.color = "#B3261E"
                     page.update()
                     return
                 tasa_actual = tienda.tasa_cambio if tienda else 36.5
@@ -641,12 +642,12 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
                     porcentaje = float(str(porcentaje_input_cal.value or "0").replace(",", "."))
                 except (TypeError, ValueError):
                     resultado_texto.value = "Cantidad, tasa y porcentaje deben ser números válidos 😊"
-                    resultado_texto.color = "red"
+                    resultado_texto.color = "#B3261E"
                     page.update()
                     return
                 if precio < 0 or tasa_actual <= 0 or porcentaje < 0:
                     resultado_texto.value = "La cantidad y el porcentaje no pueden ser negativos; la tasa debe ser mayor que cero 😊"
-                    resultado_texto.color = "red"
+                    resultado_texto.color = "#B3261E"
                     page.update()
                     return
                 tasa_calculadora = tasa_actual
@@ -666,12 +667,13 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
                         f"\nEl {porcentaje:.2f}% de {simbolo_entrada}{precio:.2f} "
                         f"es {simbolo_entrada}{porcentaje_resultado:.2f}"
                     )
-                resultado_texto.color = "green"
+                resultado_texto.color = "#000000"
+                resultado_texto.weight = ft.FontWeight.BOLD
                 precio_input_cal.value = ""
                 page.update()
         except Exception as e:
             print(f"❌ Error en accion_principal: {e}")
-            mostrar_snackbar(page, f"❌ Error: {e}", color="red")
+            mostrar_snackbar(page, f"❌ Error: {e}", color="#B3261E")
 
     nombre_input_reg.on_submit = accion_principal
     precio_input_reg.on_submit = accion_principal

@@ -35,7 +35,7 @@ def _show_full_image(page: ft.Page, src: str, src_2: str | None = None):
 
     def cerrar(e):
         page.clean()
-        page.bgcolor = "white"
+        page.bgcolor = "#FFFFFF"
         for control in previous_controls:
             page.add(control)
         page.update()
@@ -52,7 +52,7 @@ def _show_full_image(page: ft.Page, src: str, src_2: str | None = None):
                 on_click=siguiente,
                 visible=len(imagenes) > 1,
                 bgcolor="#040D4A",
-                color="white",
+                color="#FFFFFF",
                 height=44,
                 width=ancho_botones,
             ),
@@ -88,7 +88,7 @@ def _show_full_image(page: ft.Page, src: str, src_2: str | None = None):
                     width=ancho_imagen,
                     height=560,
                     border_radius=24,
-                    bgcolor="transparent",
+                    bgcolor="#00000000",
                     padding=0,
                 ),
                 ft.Container(
@@ -108,7 +108,7 @@ def _show_full_image(page: ft.Page, src: str, src_2: str | None = None):
     )
 
     page.clean()
-    page.bgcolor = "white"
+    page.bgcolor = "#FFFFFF"
     page.add(vista_imagen)
     page.update()
 
@@ -116,7 +116,7 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
     # PANTALLA: búsqueda global, detalles de producto y flujo de reserva.
     configurar_retroceso(page, lambda: go_back(usuario))
     page.clean()
-    page.bgcolor = "white"
+    page.bgcolor = "#FFFFFF"
 
     fondo = ft.Container(
         expand=True,
@@ -144,7 +144,7 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
         mostrar_snackbar(
             page,
             "⚠️ No se pudieron cargar los productos desde la base de datos. Intenta nuevamente más tarde.",
-            color="orange",
+            color="#8A4B08",
         )
 
     tiendas_usuario = [
@@ -234,9 +234,9 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
                 try:
                     mensaje = f"Hola, quiero consultar el producto: {nombre_producto}"
                     if not abrir_whatsapp(page, numero_whatsapp, mensaje):
-                        mostrar_snackbar(page, "❌ Esta tienda no tiene un número de WhatsApp válido o no se pudo abrir.", color="orange")
+                        mostrar_snackbar(page, "❌ Esta tienda no tiene un número de WhatsApp válido o no se pudo abrir.", color="#8A4B08")
                 except Exception as error:
-                    mostrar_snackbar(page, f"❌ No se pudo abrir WhatsApp: {error}", color="orange")
+                    mostrar_snackbar(page, f"❌ No se pudo abrir WhatsApp: {error}", color="#8A4B08")
 
             thumb = ft.Container(width=110, height=110, bgcolor="#F3F3F3", border_radius=12)
             if imagen and imagen_disponible(imagen):
@@ -317,7 +317,7 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
                         alignment=ft.MainAxisAlignment.CENTER,
                     ),
                 ], spacing=6, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                bgcolor=ft.Colors.WHITE,
+                bgcolor="#FFFFFF",
                 border_radius=12,
                 padding=10,
                 width=230,
@@ -436,9 +436,9 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
                     try:
                         mensaje = f"Hola, quiero consultar el producto: {nombre_producto}"
                         if not abrir_whatsapp(page, numero_whatsapp, mensaje):
-                            mostrar_snackbar(page, "❌ No hay un número de WhatsApp válido para esta tienda. Revisa la información 😊", color="orange")
+                            mostrar_snackbar(page, "❌ No hay un número de WhatsApp válido para esta tienda. Revisa la información 😊", color="#8A4B08")
                     except Exception as error:
-                        mostrar_snackbar(page, f"❌ Error al abrir WhatsApp: {error}", color="orange")
+                        mostrar_snackbar(page, f"❌ Error al abrir WhatsApp: {error}", color="#8A4B08")
 
                 
                 thumb = ft.Container(width=180, height=180, bgcolor="#F3F3F3", border_radius=12)
@@ -529,7 +529,7 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
                         alignment=ft.MainAxisAlignment.START,
                         spacing=10,
                     ),
-                    bgcolor=ft.Colors.WHITE,
+                    bgcolor="#FFFFFF",
                     border_radius=15,
                     padding=10,
                 )

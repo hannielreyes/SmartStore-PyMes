@@ -227,7 +227,7 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
     configurar_retroceso(page, lambda: None)
     page.clean()
     page.update()
-    page.bgcolor = "white"
+    page.bgcolor = "#FFFFFF"
 
     fondo = ft.Container(
         expand=True,
@@ -256,7 +256,15 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
     imagen_perfil_path = None
     imagen_perfil_preview = ft.Container(width=48, height=48, bgcolor="#F3F3F3", border_radius=12, visible=False)
 
-    mensaje_estado = ft.Text("", size=14, visible=False, color="red")
+    mensaje_estado = ft.Text("", size=14, visible=False, color="#B3261E")
+    panel_mensaje_estado = ft.Container(
+        content=mensaje_estado,
+        width=ancho_campos,
+        padding=10,
+        bgcolor="#FFFFFF",
+        border_radius=8,
+        visible=False,
+    )
     codigo_sesion = None
     panel_codigo = ft.Container(visible=False)
     spinner_reconexion = ft.Container(
@@ -338,7 +346,7 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
             imagen_perfil_path = ruta
             imagen_perfil_preview.content = ft.Image(src=ruta, width=48, height=48, fit="cover")
             imagen_perfil_preview.visible = True
-            mostrar_snackbar(page, "✅ Imagen de perfil cargada", color="green")
+            mostrar_snackbar(page, "✅ Imagen de perfil cargada", color="#1B5E20")
             page.update()
 
     btn_imagen_perfil = ft.TextButton(
@@ -351,10 +359,13 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
         visible=False,
     )
 
-    def mostrar_mensaje(texto, color="red"):
+    def mostrar_mensaje(texto, color="#B3261E"):
         mensaje_estado.value = str(texto)
-        mensaje_estado.color = color
+        es_exito = color.lower() in {"#1b5e20", "#2f9416"}
+        mensaje_estado.color = "#000000" if es_exito else color
+        mensaje_estado.weight = ft.FontWeight.BOLD if es_exito else ft.FontWeight.NORMAL
         mensaje_estado.visible = True
+        panel_mensaje_estado.visible = True
         page.update()
 
     def completar_google(respuesta):
@@ -378,7 +389,7 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
         telefono_input.visible = True
         fecha_input.visible = True
         btn_imagen_perfil.visible = True
-        mostrar_mensaje("Google autenticó tu correo. Crea una contraseña propia de SmartStore y completa tu perfil.", "green")
+        mostrar_mensaje("Google autenticó tu correo. Crea una contraseña propia de SmartStore y completa tu perfil.", "#2F9416")
 
     btn_google.on_click = lambda e: iniciar_google_oauth(
         page,
@@ -394,7 +405,7 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
                 raise RuntimeError("No se encontró la cuenta para guardar el código")
         except Exception as exc:
             log_error(f"Error al guardar el código de sesión: {exc}")
-            mostrar_snackbar(page, "❌ No se pudo guardar el código de seguridad. Intenta nuevamente.", color="red")
+            mostrar_snackbar(page, "❌ No se pudo guardar el código de seguridad. Intenta nuevamente.", color="#B3261E")
             return
         guardar_sesion(page, correo, password, usuario_id=usuario_dict.get("id"))
         page._smartstore_session_code = codigo_sesion
@@ -412,7 +423,7 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
             try:
                 await page.clipboard.set(codigo_sesion)
             except Exception:
-                mostrar_snackbar(page, "No se pudo copiar automáticamente. Anota el código manualmente.", color="orange")
+                mostrar_snackbar(page, "No se pudo copiar automáticamente. Anota el código manualmente.", color="#8A4B08")
                 return
             panel_codigo.visible = False
             page.update()
@@ -429,7 +440,7 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
                         color="#555555",
                         text_align=ft.TextAlign.CENTER,
                     ),
-                    ft.ElevatedButton("📋 Copiar código", on_click=lambda e: page.run_task(copiar_codigo, e), bgcolor="#040D4A", color="white"),
+                    ft.ElevatedButton("📋 Copiar código", on_click=lambda e: page.run_task(copiar_codigo, e), bgcolor="#040D4A", color="#FFFFFF"),
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=8,
@@ -543,7 +554,7 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
                     )
             except Exception as e:
                 log_error(f"Error registrar usuario: {e}")
-                mostrar_snackbar(page, f"❌ Error al registrar usuario: {e}", color="red")
+                mostrar_snackbar(page, f"❌ Error al registrar usuario: {e}", color="#B3261E")
                 return
             mostrar_mensaje(mensaje)
 
@@ -562,14 +573,265 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
                     usuario = db.obtener_usuario(correo, password)
                 except Exception as error:
                     log_error(f"Error al preparar el código de la cuenta nueva: {error}")
-                    mostrar_snackbar(page, "✅ Cuenta creada. Inicia sesión para recibir tu código de seguridad.", color="green")
+                    mostrar_snackbar(page, "✅ Cuenta creada. Inicia sesión para recibir tu código de seguridad.", color="#1B5E20")
                     correo_input.value = correo
                     password_input.value = password
                     cambiar_vista(limpiar_credenciales=False)
                     return
 
                 if not usuario:
-                    mostrar_snackbar(page, "✅ Cuenta creada. Inicia sesión para recibir tu código de seguridad.", color="green")
+                    mostrar_snackbar(page, "✅ Cuenta creada. Inicia sesión para recibir tu código de seguridad.", color="#1B5E20"
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    )
                     correo_input.value = correo
                     password_input.value = password
                     cambiar_vista(limpiar_credenciales=False)
@@ -639,7 +901,7 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
                 btn_accion,
                 btn_google,
                 panel_codigo,
-                mensaje_estado,
+                panel_mensaje_estado,
                 btn_alternar,
                 btn_recuperar,
             ],
@@ -656,6 +918,7 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
         for campo in (correo_input, password_input, nombre_input, telefono_input, fecha_input):
             campo.width = ancho_disponible
         btn_google.width = ancho_disponible
+        panel_mensaje_estado.width = ancho_disponible
 
         if ancho_disponible < 310:
             texto_google.value = "Google"

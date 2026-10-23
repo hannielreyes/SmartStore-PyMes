@@ -43,15 +43,15 @@ def main(page: ft.Page):
         db.inicializar_bd()
     except Exception as e:
         from utils import log_error
-        log_error(f"Error initializing DB: {e}")
-        mostrar_snackbar(page, "❌ Error initializing database", color="red")
+        log_error(f"Error al inicializar la base de datos: {e}")
+        mostrar_snackbar(page, "❌ Error al inicializar la base de datos.", color="#B3261E")
     if not db.USAR_SUPABASE:
         try:
             db.cancelar_reservas_vencidas()
         except Exception as e:
             from utils import log_error
-            log_error(f"Error canceling reservations: {e}")
-            mostrar_snackbar(page, "❌ Error canceling reservations", color="red")
+            log_error(f"Error al cancelar reservas: {e}")
+            mostrar_snackbar(page, "❌ Error al cancelar reservas.", color="#B3261E")
     usuario_actual = None
 
     def mostrar_transicion(texto="Cargando..."):

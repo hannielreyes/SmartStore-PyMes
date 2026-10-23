@@ -11,7 +11,7 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
     """Vista de billetera y configuración de pagos."""
     configurar_retroceso(page, lambda: go_back(usuario))
     page.clean()
-    page.bgcolor = "white"
+    page.bgcolor = "#FFFFFF"
 
     fondo = ft.Container(
         expand=True,
@@ -59,7 +59,7 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
             f"💰 {tienda.nombre}",
             on_click=lambda e, tienda_id=tienda.id: go_to_control_reservas(tienda_id, True, False),
             bgcolor="#EFD320",
-            color="white",
+            color="#FFFFFF",
             height=36,
         )
         for tienda in tiendas
@@ -79,7 +79,7 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
             "💰 Abrir billetera",
             on_click=ir_a_billetera,
             bgcolor="#EFD320",
-            color="white",
+            color="#FFFFFF",
             height=36,
         )
     )
@@ -104,19 +104,19 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
             email = email_input.value.strip()
             if not email or "@" not in email:
                 mensaje.value = "⚠️ Escribe un correo válido."
-                mensaje.color = "red"
+                mensaje.color = "#B3261E"
                 page.update()
                 return
             if not codigo_sesion_valido(page, codigo_input.value.strip()):
                 mensaje.value = "🔐 El código de seguridad no es válido o ya expiró."
-                mensaje.color = "red"
+                mensaje.color = "#B3261E"
                 page.update()
                 return
             db.guardar_paypal_email(usuario["id"], email)
             codigo_input.value = ""
             dialogo.open = False
             page.update()
-            mostrar_snackbar(page, "✅ Cuenta PayPal vinculada correctamente.", color="green")
+            mostrar_snackbar(page, "✅ Cuenta PayPal vinculada correctamente.", color="#1B5E20")
 
         def cancelar(e):
             # ACCIÓN: cierra el diálogo sin guardar el correo.
@@ -142,7 +142,7 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
                     "Guardar",
                     on_click=guardar_email,
                     bgcolor="#040D4A",
-                    color="white",
+                    color="#FFFFFF",
                     width=140,
                 ),
             ],
@@ -164,12 +164,12 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
                 lista_billeteras,
                 ft.Divider(height=18),
                 ft.Text("💳 Configuración de pagos", size=16, weight=ft.FontWeight.BOLD),
-                ft.Text(f"📧 {paypal_actual}", size=13, color="green") if paypal_actual else ft.Container(),
+                ft.Text(f"📧 {paypal_actual}", size=13, color="#000000") if paypal_actual else ft.Container(),
                 ft.ElevatedButton(
                     texto_paypal,
                     on_click=vincular_paypal,
                     bgcolor="#040D4A",
-                    color="white",
+                    color="#FFFFFF",
                     height=36,
                     width=ancho_btn_paypal,
                 ),

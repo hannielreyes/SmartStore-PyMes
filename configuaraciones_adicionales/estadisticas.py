@@ -10,7 +10,7 @@ def ajustes_adicionales_view(page: ft.Page, usuario, go_back, abrir_estadisticas
 	# PANTALLA: ajustes adicionales con accesos al perfil y a estadísticas.
 	configurar_retroceso(page, lambda: go_back(usuario))
 	page.clean()
-	page.bgcolor = "white"
+	page.bgcolor = "#FFFFFF"
 
 	fondo = ft.Container(
 		expand=True,
@@ -34,7 +34,7 @@ def ajustes_adicionales_view(page: ft.Page, usuario, go_back, abrir_estadisticas
 					"👤 Mi Perfil",
 					on_click=lambda e: abrir_perfil_usuario(usuario),
 					bgcolor="#168AAD",
-					color="white",
+					color="#FFFFFF",
 					width=ancho_btn_perfil,
 				),
 				# BOTÓN: abre el resumen de estadísticas de ventas.
@@ -42,7 +42,7 @@ def ajustes_adicionales_view(page: ft.Page, usuario, go_back, abrir_estadisticas
 					"📊 Estadísticas",
 					on_click=lambda e: abrir_estadisticas(usuario),
 					bgcolor="#040D4A",
-					color="white",
+					color="#FFFFFF",
 					width=ancho_btn_estadisticas,
 				),
 				# BOTÓN: regresa al menú principal.
@@ -69,7 +69,7 @@ def estadisticas_view(page: ft.Page, usuario, go_back):
 	# PANTALLA: resumen semanal, total vendido y barras de ventas.
 	configurar_retroceso(page, go_back)
 	page.clean()
-	page.bgcolor = "white"
+	page.bgcolor = "#FFFFFF"
 
 	fondo = ft.Container(
 		expand=True,
@@ -106,7 +106,7 @@ def estadisticas_view(page: ft.Page, usuario, go_back):
 						content=ft.Text(
 							f"C${valor:.2f}" if valor else "Sin ventas",
 							size=11,
-							color="white" if valor else "#555555",
+							color="#FFFFFF" if valor else "#555555",
 						),
 						width=max(ancho, 82 if valor else 82),
 						height=28,
