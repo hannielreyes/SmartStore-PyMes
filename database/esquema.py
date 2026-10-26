@@ -14,7 +14,7 @@ from .conexion import (
 def inicializar_bd():
     if _supabase_activo():
         print("Base de datos remota Supabase activa.")
-        return
+        print("Preparando SQLite local para respaldo si Supabase deja de estar disponible.")
     conn = get_db_connection()
     cursor = conn.cursor()
 

@@ -8,6 +8,7 @@ from database.models import Producto, Tienda
 import os
 from utils import (
     mostrar_snackbar,
+    aplicar_estilo_campo_sobre_fondo,
     abrir_whatsapp,
     configurar_retroceso,
     imagen_disponible,
@@ -124,6 +125,7 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
     )
 
     buscar_entry = ft.TextField(label="Buscar productos en toda la base de datos", width=300)
+    aplicar_estilo_campo_sobre_fondo(buscar_entry)
     resultados = ft.Column(
         spacing=10,
         scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True),
@@ -195,7 +197,7 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
                 "No se pudieron consultar los productos. Intenta nuevamente más tarde.",
                 width=300,
                 text_align=ft.TextAlign.CENTER,
-                color="#4D5F7A",
+                color="#FFFFFF",
             )
         )
     elif not productos_aleatorios:
@@ -204,7 +206,7 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
                 "Aún no hay productos registrados en SmartStore. Cuando una tienda publique productos, aparecerán aquí.",
                 width=300,
                 text_align=ft.TextAlign.CENTER,
-                color="#4D5F7A",
+                color="#FFFFFF",
             )
         )
     else:
@@ -540,6 +542,7 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
                         f"Ups, ocurrió un problema al mostrar este producto 😔: {error}",
                         width=300,
                         text_align=ft.TextAlign.CENTER,
+                        color="#FFFFFF",
                     )
                 )
 
@@ -568,8 +571,8 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
         content=ft.Column(
             [
                 ft.Container(height=40),
-                ft.Text("🔎 Buscar productos", size=24, weight=ft.FontWeight.BOLD, color="#040D4A", text_align=ft.TextAlign.CENTER),
-                ft.Text("Productos aleatorios", weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
+                ft.Text("🔎 Buscar productos", size=24, weight=ft.FontWeight.BOLD, color="#00D9FF", text_align=ft.TextAlign.CENTER),
+                ft.Text("Productos aleatorios", weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER, color="#FFC247"),
                 aleatorios_column,
                 buscar_entry,
                 ft.Row(
@@ -605,3 +608,4 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
             expand=True
         )
     )
+#

@@ -296,7 +296,8 @@ try {
     Reset-StaleFlutterExtensionReferences $PSScriptRoot
     Write-Host "Applying $($packageExclusions.Count) exact-path exclusions to the Flet package."
     $buildArguments = @(
-        "build", "apk", "--arch", "arm64-v8a", "--yes", "--no-rich-output",
+        "build", "apk", "--arch", "arm64-v8a", "--python-version", "3.12",
+        "--yes", "--no-rich-output",
         "--compile-app", "--exclude"
     ) + $packageExclusions
     Write-Host "Building ARM64 APK with Supabase configuration..."
