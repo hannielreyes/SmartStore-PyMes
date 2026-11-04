@@ -2,7 +2,7 @@ import threading
 
 import flet as ft
 import database as db
-from utils import configurar_retroceso
+from utils import aplicar_estilo_campo_sobre_fondo, configurar_retroceso
 
 
 def recuperar_view(page: ft.Page, go_to_menu):
@@ -22,22 +22,37 @@ def recuperar_view(page: ft.Page, go_to_menu):
         image=ft.DecorationImage(src="fondo.png", fit="cover"),
     )
 
-    correo_field = ft.TextField(label="Correo electrónico", width=300)
-    codigo_sesion_field = ft.TextField(label="Código de sesión", width=300)
-    codigo_correo_field = ft.TextField(label="Código recibido por correo", width=300, visible=False)
-    nueva_contraseña_field = ft.TextField(label="Nueva contraseña", password=True, can_reveal_password=True, width=300, visible=False)
-    confirmar_contraseña_field = ft.TextField(label="Confirmar nueva contraseña", password=True, can_reveal_password=True, width=300, visible=False)
+    ancho_campo = min(360, max(220, (page.width or 420) - 80))
+    correo_field = ft.TextField(width=ancho_campo)
+    codigo_sesion_field = ft.TextField(width=ancho_campo)
+    codigo_correo_field = ft.TextField(width=ancho_campo, visible=False)
+    nueva_contraseña_field = ft.TextField(password=True, can_reveal_password=True, width=ancho_campo, visible=False)
+    confirmar_contraseña_field = ft.TextField(password=True, can_reveal_password=True, width=ancho_campo, visible=False)
+    for campo in (
+        correo_field,
+        codigo_sesion_field,
+        codigo_correo_field,
+        nueva_contraseña_field,
+        confirmar_contraseña_field,
+    ):
+        aplicar_estilo_campo_sobre_fondo(campo)
+    etiqueta_correo = ft.Text("Correo electrónico", color="#FFFFFF", size=14, width=ancho_campo)
+    etiqueta_codigo_sesion = ft.Text("Código de sesión", color="#FFFFFF", size=14, width=ancho_campo)
+    etiqueta_codigo_correo = ft.Text("Código recibido por correo", color="#FFFFFF", size=14, width=ancho_campo, visible=False)
+    etiqueta_nueva_contrasena = ft.Text("Nueva contraseña", color="#FFFFFF", size=14, width=ancho_campo, visible=False)
+    etiqueta_confirmar_contrasena = ft.Text("Confirmar nueva contraseña", color="#FFFFFF", size=14, width=ancho_campo, visible=False)
     ayuda_contrasena = ft.Text(
         "Si Supabase la rechaza por sencilla, prueba con 8 o más caracteres y combina letras y números.",
         size=12,
-        color="#555555",
+        color="#FFFFFF",
         text_align=ft.TextAlign.CENTER,
+        width=ancho_campo,
         visible=False,
     )
-    resultado_texto = ft.Text("", size=14)
+    resultado_texto = ft.Text("", size=14, color="#FFFFFF", text_align=ft.TextAlign.CENTER, width=ancho_campo)
     spinner_reconexion = ft.Container(
         visible=False,
-        content=ft.ProgressRing(width=24, height=24, stroke_width=3, color="#4D5F7A"),
+        content=ft.ProgressRing(width=24, height=24, stroke_width=3, color="#00D9FF"),
         width=28,
         height=28,
         alignment=ft.Alignment(0.5, 0.5),
@@ -59,18 +74,22 @@ def recuperar_view(page: ft.Page, go_to_menu):
     )
     controles_verificacion = ft.Column(
         [
+            etiqueta_correo,
             correo_field,
-            ft.Text("Opción 1: código de sesión", weight=ft.FontWeight.BOLD),
+            ft.Text("Opción 1: código de sesión", weight=ft.FontWeight.BOLD, color="#00D9FF", text_align=ft.TextAlign.CENTER),
+            etiqueta_codigo_sesion,
             codigo_sesion_field,
             btn_validar_codigo_sesion,
-            ft.Divider(),
-            ft.Text("Opción 2: código por correo", weight=ft.FontWeight.BOLD),
+            ft.Divider(height=1),
+            ft.Text("Opción 2: código por correo", weight=ft.FontWeight.BOLD, color="#FFC247", text_align=ft.TextAlign.CENTER),
             btn_enviar_codigo,
+            etiqueta_codigo_correo,
             codigo_correo_field,
             btn_validar_codigo_correo,
         ],
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-        spacing=12,
+        spacing=10,
+        width=ancho_campo,
     )
     datos_recuperados = {
         "correo": "",
@@ -83,7 +102,7 @@ def recuperar_view(page: ft.Page, go_to_menu):
     def mostrar_resultado(mensaje, color="#B3261E"):
         resultado_texto.value = str(mensaje)
         es_exito = color.lower() == "#1b5e20"
-        resultado_texto.color = "#000000" if es_exito else color
+        resultado_texto.color = "#FFFFFF" if es_exito else "#FF8A80"
         resultado_texto.weight = ft.FontWeight.BOLD if es_exito else ft.FontWeight.NORMAL
         page.update()
 
@@ -107,7 +126,9 @@ def recuperar_view(page: ft.Page, go_to_menu):
         datos_recuperados["codigo_sesion"] = codigo if metodo == "sesion" else ""
         datos_recuperados["codigo_verificado"] = True
         controles_verificacion.visible = False
+        etiqueta_nueva_contrasena.visible = True
         nueva_contraseña_field.visible = True
+        etiqueta_confirmar_contrasena.visible = True
         confirmar_contraseña_field.visible = True
         ayuda_contrasena.visible = True
         btn_guardar_contrasena.visible = True
@@ -159,6 +180,7 @@ def recuperar_view(page: ft.Page, go_to_menu):
 
         datos_recuperados["correo_codigo_email"] = correo
         codigo_correo_field.value = ""
+        etiqueta_codigo_correo.visible = True
         codigo_correo_field.visible = True
         btn_validar_codigo_correo.visible = True
         mostrar_resultado("✅ Si el correo está registrado, recibirás el código. Revisa también spam.", "#1B5E20")
@@ -231,15 +253,19 @@ def recuperar_view(page: ft.Page, go_to_menu):
     content = ft.Container(
         content=ft.Column(
             [
-                ft.Container(height=40),
-                ft.Text("Recuperar Contraseña", size=28, weight=ft.FontWeight.BOLD, color="#040D4A"),
+                ft.Container(height=12),
+                ft.Text("Recuperar Contraseña", size=28, weight=ft.FontWeight.BOLD, color="#00D9FF", text_align=ft.TextAlign.CENTER),
                 ft.Text(
                     "Valida uno de los dos códigos para crear una contraseña nueva 😊",
                     size=14,
-                    color="#555555",
+                    color="#FFFFFF",
+                    width=ancho_campo,
+                    text_align=ft.TextAlign.CENTER,
                 ),
                 controles_verificacion,
+                etiqueta_nueva_contrasena,
                 nueva_contraseña_field,
+                etiqueta_confirmar_contrasena,
                 confirmar_contraseña_field,
                 ayuda_contrasena,
                 btn_guardar_contrasena,
@@ -247,8 +273,8 @@ def recuperar_view(page: ft.Page, go_to_menu):
                 ft.ElevatedButton("↩️ Volver al Login", on_click=volver_login),
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            alignment=ft.MainAxisAlignment.CENTER,
-            spacing=20,
+            alignment=ft.MainAxisAlignment.START,
+            spacing=14,
             scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True),
         ),
         padding=20,

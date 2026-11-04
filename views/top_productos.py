@@ -25,7 +25,7 @@ def top_productos_view(page: ft.Page, usuario, go_back):
     lista = ft.Column(spacing=10)
 
     if not productos:
-        lista.controls.append(ft.Text("Aún no hay productos con al menos 3 compras pagadas 😊", width=300, text_align=ft.TextAlign.CENTER))
+        lista.controls.append(ft.Text("Aún no hay productos con al menos 3 compras pagadas 😊", width=300, text_align=ft.TextAlign.CENTER, color="#FFFFFF"))
     else:
         for p in productos:
             nombre = p.nombre
@@ -59,7 +59,7 @@ def top_productos_view(page: ft.Page, usuario, go_back):
         content=ft.Column(
             [
                 ft.Container(height=40),
-                ft.Text("Top Productos", size=28, weight=ft.FontWeight.BOLD, color="#040D4A"),
+                ft.Text("Top Productos", size=28, weight=ft.FontWeight.BOLD, color="#00D9FF"),
                 lista,
                 ft.ElevatedButton("↩️ Volver", on_click=lambda e: go_back(usuario)),
             ],

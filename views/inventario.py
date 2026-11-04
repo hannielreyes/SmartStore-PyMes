@@ -3,7 +3,7 @@ import flet as ft
 import database as db
 from database.models import Producto
 import os
-from utils import configurar_retroceso, mostrar_snackbar, imagen_disponible
+from utils import configurar_retroceso, mostrar_snackbar, imagen_disponible, log_error
 
 def _show_full_image(page: ft.Page, src: str, src_2: str | None = None):
     # PANTALLA AUXILIAR: muestra una imagen ampliada y permite cambiar o cerrar.
@@ -123,6 +123,8 @@ def inventario_view(page: ft.Page, usuario, go_back):
         scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True),
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
     )
+    total_productos_texto = ft.Text("Total de productos: 0", size=16, weight=ft.FontWeight.BOLD)
+    stock_total_texto = ft.Text("+ 0", size=40, weight=ft.FontWeight.BOLD, color="#000000")
     contexto = getattr(page, "_smartstore_context", None) or {}
     productos_precargados = contexto.get("productos")
     usar_productos_precargados = productos_precargados is not None
@@ -178,6 +180,7 @@ def inventario_view(page: ft.Page, usuario, go_back):
 
             dialogo.open = False
             page.update()
+            page._smartstore_context = None
             cargar()
             mostrar_snackbar(page, "✅ Producto actualizado correctamente.", color="#1B5E20")
 
@@ -209,22 +212,70 @@ def inventario_view(page: ft.Page, usuario, go_back):
         # CARGA: reconstruye la lista de productos del inventario.
         lista.controls.clear()
         if usar_productos_precargados:
-            productos = productos_precargados
+            filas_productos = productos_precargados
             usar_productos_precargados = False
         else:
-            productos = db.obtener_productos_usuario(usuario["id"])
-
-        if not productos:
+            filas_productos = None
+        try:
+            if filas_productos is None:
+                filas_productos = db.obtener_productos_usuario(usuario["id"])
+            productos = [
+                fila if isinstance(fila, Producto) else Producto.desde_fila(fila)
+                for fila in filas_productos
+            ]
+            catalogo_completo = (
+                not db._supabase_activo()
+                or db.tiene_catalogo_conocido(usuario["id"], "productos")
+            )
+            total_productos_texto.value = (
+                f"Total de productos: {len(productos)}"
+                if catalogo_completo
+                else f"Productos guardados aquí: {len(productos)}"
+            )
+            stock_total_texto.value = (
+                f"+ {sum(int(producto.stock or 0) for producto in productos)}"
+                if catalogo_completo
+                else "+ —"
+            )
+            if not catalogo_completo:
+                lista.controls.append(
+                    ft.Text(
+                        "No hay una copia completa del inventario. Conéctate para cargarlo; "
+                        "los cambios hechos en este dispositivo sí se conservan.",
+                        color="#FFFFFF",
+                        size=13,
+                        text_align=ft.TextAlign.CENTER,
+                    )
+                )
+        except (RuntimeError, TypeError, ValueError) as error:
+            log_error(f"No se pudo cargar el inventario del usuario {usuario['id']}: {error}")
+            total_productos_texto.value = "Total de productos: —"
+            stock_total_texto.value = "+ —"
             lista.controls.append(
-                ft.Text("Aún no tienes productos registrados en tu inventario 😊", color="#555555", size=16, text_align=ft.TextAlign.CENTER)
+                ft.Text(
+                    "⚠️ No se pudo cargar el inventario. Revisa la conexión e inténtalo de nuevo.",
+                    color="#FFFFFF",
+                    size=16,
+                    text_align=ft.TextAlign.CENTER,
+                )
             )
             page.update()
             return
 
-        productos = [
-            fila if isinstance(fila, Producto) else Producto.desde_fila(fila)
-            for fila in productos
-        ]
+        if not productos:
+            lista.controls.append(
+                ft.Text(
+                    "Aún no tienes productos registrados en tu inventario 😊"
+                    if catalogo_completo
+                    else "Conéctate para consultar si tienes productos en el inventario.",
+                    color="#FFFFFF",
+                    size=16,
+                    text_align=ft.TextAlign.CENTER,
+                )
+            )
+            page.update()
+            return
+
         for p in productos:
             id_p = p.id
             nombre = p.nombre
@@ -436,25 +487,19 @@ def inventario_view(page: ft.Page, usuario, go_back):
             )
         page.update()
 
-    stock_total = contexto.get("stock_total")
-    total_productos = len(productos_precargados) if productos_precargados is not None else None
-    if stock_total is None:
-        stock_total = db.obtener_stock_total_usuario(usuario["id"])
-    if total_productos is None:
-        total_productos = len(db.obtener_productos_usuario(usuario["id"]))
     ancho_boton_volver = min(max((page.width or 360) - 40, 180), ancho_btn_volver_menu)
 
     content = ft.Container(
         content=ft.Column(
             [
                 ft.Container(height=40),
-                ft.Text("📦 Estado del Inventario", size=24, weight=ft.FontWeight.BOLD, color="#040D4A"),
+                ft.Text("📦 Estado del Inventario", size=24, weight=ft.FontWeight.BOLD, color="#00D9FF"),
                 ft.Container(
                     content=ft.Column(
                         [
-                            ft.Text(f"Total de productos: {total_productos}", size=16, weight=ft.FontWeight.BOLD),
+                            total_productos_texto,
                             ft.Text("Estado del inventario", size=14, color="#555555"),
-                            ft.Text(f"+ {stock_total}", size=40, weight=ft.FontWeight.BOLD, color="#000000"),
+                            stock_total_texto,
                             ft.Text("📋 Lista de productos", size=14, weight=ft.FontWeight.BOLD, color="#040D4A"),
                         ],
                         spacing=5,

@@ -25,10 +25,10 @@ def pre_splash_view(page: ft.Page, on_complete):
         [
             ft.Text("😉", size=80),
             ft.Text("🛒", size=80),
-            ft.Text("¡Smart-Store!", size=32, weight=ft.FontWeight.BOLD, color="#FFFFFF"),
+            ft.Text("¡Smart-Store!", size=32, weight=ft.FontWeight.BOLD, color="#040D4A"),
             ft.Container(height=6), #espaciado entre el título y el indicador de progreso.
             progress,
-            ft.Text("Cargando datos...", size=15, color="#FFFFFF"),
+            ft.Text("Cargando datos...", size=15, color="#040D4A"),
         ],
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         spacing=20,

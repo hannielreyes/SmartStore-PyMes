@@ -4,8 +4,15 @@ import os
 import flet as ft
 
 import database as db
+from database.conexion import SupabaseNoDisponible
 from database.models import ProductoReserva, Tienda
-from utils import boton_glossy, configurar_retroceso, imagen_disponible, mostrar_snackbar
+from utils import (
+    aplicar_estilo_campo_sobre_fondo,
+    boton_glossy,
+    configurar_retroceso,
+    imagen_disponible,
+    mostrar_snackbar,
+)
 from views.carrito import iniciar_pago_reserva
 
 
@@ -13,11 +20,31 @@ def reservar_view(page: ft.Page, usuario, producto_id, producto_nombre, producto
     configurar_retroceso(page, go_back)
     page.clean()
     page.bgcolor = "#FFFFFF"
-    producto_fila = db.obtener_producto_por_id(producto_id)
-    producto = ProductoReserva.desde_fila(producto_fila) if producto_fila else None
-    precio = float(producto.precio_cordobas or 0) if producto else 0.0
-    tienda_id = producto.tienda_id if producto else None
-    tienda_fila = db.obtener_tienda_por_id(tienda_id) if tienda_id else None
+    try:
+        producto_fila = db.obtener_producto_por_id(producto_id)
+        producto = ProductoReserva.desde_fila(producto_fila) if producto_fila else None
+        precio = float(producto.precio_cordobas or 0) if producto else 0.0
+        tienda_id = producto.tienda_id if producto else None
+        tienda_fila = db.obtener_tienda_por_id(tienda_id) if tienda_id else None
+    except SupabaseNoDisponible:
+        page.add(
+            ft.SafeArea(
+                ft.Column(
+                    [
+                        ft.Text(
+                            "Para reservar y confirmar el stock necesitas conexión a internet.",
+                            text_align=ft.TextAlign.CENTER,
+                        ),
+                        ft.ElevatedButton("↩️ Volver", on_click=lambda e: go_back()),
+                    ],
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    alignment=ft.MainAxisAlignment.CENTER,
+                ),
+                expand=True,
+            )
+        )
+        page.update()
+        return
     tienda = Tienda.desde_fila(tienda_fila) if tienda_fila else None
     nombre_tienda = tienda.nombre if tienda else "Tienda no identificada"
     direccion = tienda.direccion if tienda else "No indicada"
@@ -28,7 +55,8 @@ def reservar_view(page: ft.Page, usuario, producto_id, producto_nombre, producto
         logo = ft.Image(src=tienda.imagen, width=64, height=64, fit="cover", border_radius=12)
 
     cantidad = ft.TextField(label="Cantidad", value="1", width=300, keyboard_type=ft.KeyboardType.NUMBER)
-    total = ft.Text(f"Total: C${precio:.2f}", size=16, color="#E61A1A", weight=ft.FontWeight.BOLD)
+    aplicar_estilo_campo_sobre_fondo(cantidad)
+    total = ft.Text(f"Total: C${precio:.2f}", size=16, color="#FFB4AB", weight=ft.FontWeight.BOLD)
 
     def actualizar(_):
         try:
@@ -86,13 +114,13 @@ def reservar_view(page: ft.Page, usuario, producto_id, producto_nombre, producto
     contenido = ft.Column(
         [
             ft.Container(height=24),
-            ft.Text("Reservar y pagar", size=28, weight=ft.FontWeight.BOLD, color="#0A2540"),
-            ft.Text(f"Producto: {producto_nombre}", size=18, weight=ft.FontWeight.BOLD),
-            ft.Text(f"Tienda: {nombre_tienda}"),
-            ft.Text(f"Marca: {marca} | Talla: {talla}"),
-            ft.Text(f"Dirección: {direccion}"),
+            ft.Text("Reservar y pagar", size=28, weight=ft.FontWeight.BOLD, color="#FFFFFF"),
+            ft.Text(f"Producto: {producto_nombre}", size=18, weight=ft.FontWeight.BOLD, color="#FFFFFF"),
+            ft.Text(f"Tienda: {nombre_tienda}", color="#FFFFFF"),
+            ft.Text(f"Marca: {marca} | Talla: {talla}", color="#FFFFFF"),
+            ft.Text(f"Dirección: {direccion}", color="#FFFFFF"),
             logo,
-            ft.Text(f"Precio: C${precio:.2f}  ·  Disponibles: {producto_stock}"),
+            ft.Text(f"Precio: C${precio:.2f}  ·  Disponibles: {producto_stock}", color="#FFFFFF"),
             cantidad,
             total,
             boton_glossy("Continuar al pago", on_click=confirmar, color="#EFA520", text_color="#0A2540", width=220),

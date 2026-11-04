@@ -1,17 +1,17 @@
-﻿import flet as ft
+import flet as ft
 import database as db
 from views.reservar import reservar_view
 from views.top_productos import top_productos_view
 from services.cola_tareas import encolar_busqueda_sin_resultado
 from services.busqueda_lineal import buscar_productos_linealmente
 from database.models import Producto, Tienda
-import os
 from utils import (
     mostrar_snackbar,
     aplicar_estilo_campo_sobre_fondo,
     abrir_whatsapp,
     configurar_retroceso,
     imagen_disponible,
+    log_error,
 )
 
 
@@ -124,8 +124,15 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
         image=ft.DecorationImage(src="fondo.png", fit="cover"),
     )
 
-    buscar_entry = ft.TextField(label="Buscar productos en toda la base de datos", width=300)
+    buscar_entry = ft.TextField(label="Buscar productos en toda la base de datos", width=300, color="#D6D2B0")
     aplicar_estilo_campo_sobre_fondo(buscar_entry)
+    buscar_entry.color = "#FFFFFF"
+    buscar_entry.text_style = ft.TextStyle(color="#FFFFFF")
+    buscar_entry.label_style = ft.TextStyle(
+        color="#C7C5B7",
+        size=14,
+        weight=ft.FontWeight.W_600,
+    )
     resultados = ft.Column(
         spacing=10,
         scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True),
@@ -138,7 +145,10 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
     try:
         productos_aleatorios = [
             Producto.desde_fila(fila)
-            for fila in db.obtener_productos_aleatorios(limit=5)
+            for fila in db.obtener_productos_aleatorios(
+                limit=5,
+                cache_usuario_id=usuario["id"],
+            )
         ]
     except RuntimeError:
         productos_aleatorios = []
@@ -149,13 +159,32 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
             color="#8A4B08",
         )
 
-    tiendas_usuario = [
-        Tienda.desde_fila(fila) for fila in db.obtener_tiendas_usuario(usuario["id"])
-    ]
+    error_carga_tiendas = False
+    try:
+        tiendas_usuario = [
+            Tienda.desde_fila(fila) for fila in db.obtener_tiendas_usuario(usuario["id"])
+        ]
+    except RuntimeError as error:
+        log_error(f"No se pudieron cargar las tiendas del usuario en la búsqueda: {error}")
+        tiendas_usuario = []
+        error_carga_tiendas = True
+        mostrar_snackbar(
+            page,
+            "⚠️ No se pudieron verificar tus tiendas. Intenta nuevamente más tarde.",
+            color="#8A4B08",
+        )
     ids_tiendas_usuario = {tienda.id for tienda in tiendas_usuario}
 
     def iniciar_reserva(id_producto, nombre_producto, cantidad, tienda_id):
         # ACCIÓN: inicia la reserva y confirma si el producto pertenece al usuario.
+        if error_carga_tiendas:
+            mostrar_snackbar(
+                page,
+                "⚠️ No se pudo comprobar si este producto es de tu tienda. Intenta nuevamente más tarde.",
+                color="#8A4B08",
+            )
+            return
+
         def salir(e):
             # BOTÓN SALIR: cierra el aviso; no permite reservar productos propios.
             dialogo.open = False
@@ -179,10 +208,16 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
             title=ft.Text("⚠️ Producto de tu propia tienda"),
             content=ft.Text(
                 "Estás intentando reservar un producto que pertenece a tu propia tienda. "
-                "¿Deseas continuar de todos modos?"
             ),
             actions=[
-                ft.TextButton("Salir", on_click=salir),
+                ft.TextButton(
+                    "Salir",
+                    on_click=salir,
+                    style=ft.ButtonStyle(
+                        bgcolor="#EFA520",
+                        color="#040D4A",
+                    ),
+                ),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
@@ -218,7 +253,16 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
             cantidad = int(p.stock or 0)
             imagen = p.imagen
             imagen_2 = p.imagen_2
-            fila_tienda = db.obtener_tienda_por_id(p.tienda_id) if p.tienda_id else None
+            try:
+                fila_tienda = db.obtener_tienda_por_id(p.tienda_id) if p.tienda_id else None
+            except RuntimeError as error:
+                log_error(f"No se pudieron cargar los datos de la tienda {p.tienda_id}: {error}")
+                fila_tienda = None
+                mostrar_snackbar(
+                    page,
+                    "⚠️ No se pudieron cargar los datos de una tienda. Intenta nuevamente más tarde.",
+                    color="#8A4B08",
+                )
             tienda_producto = Tienda.desde_fila(fila_tienda) if fila_tienda else None
             whatsapp_aleatorio = tienda_producto.whatsapp if tienda_producto else None
             logo_tienda = tienda_producto.imagen if tienda_producto else None
@@ -345,6 +389,7 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
             resultados.controls.append(
                 ft.Text(
                     "Escribe el nombre del producto que deseas encontrar 😊🔎",
+                    color="#C7C5B7",
                     width=300,
                     text_align=ft.TextAlign.CENTER,
                 )
@@ -353,7 +398,10 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
             return
 
         try:
-            filas_producto = db.obtener_productos_por_nombre(busqueda)
+            filas_producto = db.obtener_productos_por_nombre(
+                busqueda,
+                cache_usuario_id=usuario["id"],
+            )
             lista_productos = [Producto.desde_fila(fila) for fila in filas_producto]
             productos = buscar_productos_linealmente(lista_productos, busqueda)
         except RuntimeError:
@@ -361,6 +409,22 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
                 ft.Container(
                     content=ft.Text(
                         "⚠️ No se pudieron consultar los productos desde la base de datos. Intenta nuevamente más tarde.",
+                        width=300,
+                        text_align=ft.TextAlign.CENTER,
+                        color="#4D5F7A",
+                    ),
+                    width=320,
+                    padding=10,
+                )
+            )
+            page.update()
+            return
+        except TypeError as error:
+            log_error(f"Los datos de productos para la búsqueda no tienen el formato esperado: {error}")
+            resultados.controls.append(
+                ft.Container(
+                    content=ft.Text(
+                        "⚠️ No se pudieron procesar los productos. Vuelve a intentarlo más tarde.",
                         width=300,
                         text_align=ft.TextAlign.CENTER,
                         color="#4D5F7A",
@@ -384,7 +448,7 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
             if len(solicitud) <= 3:
                 mensaje_sin_resultados = (
                     "No encontramos resultados. Asegúrate de que el nombre esté bien escrito "
-                    "o escribe el nombre completo del producto para buscarlo mejor 😊🔎"
+                    "o escribe el nombre completo del producto para buscarlo mejor 😊🔎,"
                 )
             else:
                 mensaje_sin_resultados = (
@@ -397,6 +461,7 @@ def buscar_producto_view(page: ft.Page, usuario, go_back):
                         mensaje_sin_resultados,
                         width=300,
                         text_align=ft.TextAlign.CENTER,
+                        color="#C7C5B7",
                     ),
                     width=320,
                     padding=10,

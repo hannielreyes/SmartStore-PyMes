@@ -2,6 +2,7 @@
 # No editar manualmente; los cambios deben hacerse en `legado.py` y volver a ejecutar este script.
 
 from .conexion import (
+    SupabaseNoDisponible,
     get_db_connection,
     _supabase_activo,
     _supabase_unico,
@@ -30,6 +31,8 @@ def agregar_reserva(usuario_id, producto_id, cantidad, tienda_id):
             return bool(resultado.get("ok")), resultado.get("message", "No se pudo crear la reserva"), resultado.get("id")
         except Exception as exc:
             _marcar_supabase_caido(f"Error al crear reserva remota: {exc}")
+            if isinstance(exc, SupabaseNoDisponible) or "no se pudo contactar supabase" in str(exc).lower():
+                return False, "Crear una reserva requiere conexión a internet.", None
             return False, "No se pudo confirmar el stock. Intenta nuevamente.", None
     conn = get_db_connection()
     conn.isolation_level = None
@@ -146,6 +149,11 @@ def cancelar_reservas_vencidas():
             _marcar_supabase_caido(f"Error al cancelar reservas remotas vencidas: {exc}")
             if "42703" in str(exc) or "column" in str(exc).lower() and "does not exist" in str(exc).lower():
                 return 0
+            if isinstance(exc, SupabaseNoDisponible) or "no se pudo contactar supabase" in str(exc).lower():
+                raise SupabaseNoDisponible(
+                    "No se pudieron comprobar las reservas vencidas sin conexión."
+                ) from exc
+            raise RuntimeError(f"No se pudieron cancelar las reservas vencidas en Supabase: {exc}") from exc
     conn = get_db_connection()
     conn.isolation_level = None
     cursor = conn.cursor()

@@ -2,6 +2,7 @@ import flet as ft
 import os
 
 import database as db
+from database.conexion import SupabaseNoDisponible
 from database.models import ReservaCliente
 from utils import abrir_url_en_background, configurar_retroceso, mostrar_snackbar
 
@@ -33,11 +34,20 @@ def _dialogo_codigo(page, codigo):
 
 def iniciar_pago_reserva(page, reserva_id, tienda_id, total, go_back):
     """Paga directamente después de apartar stock; retiene el artículo 10 minutos."""
-    tienda = db.obtener_tienda_por_id(tienda_id)
-    if tienda:
-        from database.models import Tienda
-        tienda = tienda if isinstance(tienda, Tienda) else Tienda.desde_fila(tienda)
-    paypal_email = db.obtener_paypal_email(tienda.usuario_id) if tienda else None
+    try:
+        tienda = db.obtener_tienda_por_id(tienda_id)
+        if tienda:
+            from database.models import Tienda
+            tienda = tienda if isinstance(tienda, Tienda) else Tienda.desde_fila(tienda)
+        paypal_email = db.obtener_paypal_email(tienda.usuario_id) if tienda else None
+    except SupabaseNoDisponible:
+        mostrar_snackbar(
+            page,
+            "La reserva necesita internet para continuar al pago. El stock se liberará al vencer el plazo.",
+            color="#8A4B08",
+            duracion=6000,
+        )
+        return
 
     def finalizar():
         ok, mensaje, codigo = db.procesar_pago_reserva(reserva_id, total, tienda_id)
@@ -86,8 +96,17 @@ def iniciar_pago_reserva(page, reserva_id, tienda_id, total, go_back):
         if client is None:
             mostrar_snackbar(page, "No se pudo conectar con PayPal. Cancela y vuelve a intentar.", color="#B3261E")
             return
-        if not db.reserva_pago_vigente(reserva_id):
-            db.cancelar_reservas_vencidas()
+        try:
+            pago_vigente = db.reserva_pago_vigente(reserva_id)
+        except SupabaseNoDisponible:
+            mostrar_snackbar(page, "Verificar o completar el pago requiere conexión.", color="#B3261E")
+            return
+        if not pago_vigente:
+            try:
+                db.cancelar_reservas_vencidas()
+            except SupabaseNoDisponible:
+                mostrar_snackbar(page, "No se pudo comprobar el vencimiento; inténtalo con conexión.", color="#B3261E")
+                return
             mostrar_snackbar(page, "El tiempo de pago terminó. No se cobró y el producto volvió a estar disponible.", color="#8A4B08", duracion=6000)
             dlg.open = False
             page.update()
@@ -104,7 +123,13 @@ def iniciar_pago_reserva(page, reserva_id, tienda_id, total, go_back):
             mostrar_snackbar(page, "PayPal aún no confirma el pago. Completa el proceso y vuelve a verificar.", color="#8A4B08")
 
     def cancelar(_):
-        db.eliminar_reserva(reserva_id)
+        try:
+            eliminada = db.eliminar_reserva(reserva_id)
+        except SupabaseNoDisponible:
+            eliminada = False
+        if not eliminada:
+            mostrar_snackbar(page, "Cancelar la reserva y liberar el stock requiere conexión.", color="#B3261E")
+            return
         dlg.open = False
         page.update()
         go_back()
@@ -128,10 +153,13 @@ def carrito_view(page: ft.Page, usuario, go_back):
     configurar_retroceso(page, lambda: go_back(usuario))
     page.clean()
     page.bgcolor = "#FFFFFF"
-    db.cancelar_reservas_vencidas()
+    error_carga = None
+    try:
+        db.cancelar_reservas_vencidas()
+    except RuntimeError as exc:
+        error_carga = str(exc)
     lista = ft.Column(spacing=10, scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True), expand=True)
     total_text = ft.Text("Total: C$0.00 / $0.00", weight=ft.FontWeight.BOLD)
-    error_carga = None
     try:
         filas = db.obtener_reservas_usuario(usuario["id"])
     except RuntimeError as exc:

@@ -2,6 +2,7 @@
 # No editar manualmente; los cambios deben hacerse en `legado.py` y volver a ejecutar este script.
 
 from .conexion import (
+    _marcar_supabase_caido,
     get_db_connection,
     _supabase_activo,
     _supabase_unico,
@@ -412,8 +413,17 @@ def restaurar_sesion_auth(refresh_token):
         return False
     try:
         return refrescar_sesion_auth(refresh_token)
-    except Exception:
-        limpiar_token_auth()
+    except RuntimeError as exc:
+        detalle = str(exc).lower()
+        temporal = (
+            "no se pudo contactar supabase" in detalle
+            or "timed out" in detalle
+            or any(f"http {codigo}" in detalle for codigo in (500, 502, 503, 504))
+        )
+        if temporal:
+            _marcar_supabase_caido(str(exc))
+        else:
+            limpiar_token_auth()
         return False
 
 

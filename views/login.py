@@ -12,7 +12,16 @@ from pathlib import Path
 import flet as ft
 
 import database as db
-from utils import abrir_selector_imagen, guardar_imagen_en_assets, mostrar_snackbar, configurar_retroceso, log_error, boton_glossy
+from database.conexion import SupabaseNoDisponible
+from utils import (
+    abrir_selector_imagen,
+    aplicar_estilo_campo_sobre_fondo,
+    guardar_imagen_en_assets,
+    mostrar_snackbar,
+    configurar_retroceso,
+    log_error,
+    boton_glossy,
+)
 
 from views.recuperar import recuperar_view
 from supabase_config import (
@@ -112,6 +121,8 @@ def cargar_sesion(page):
                 return usuario.correo, token
             borrar_sesion(page)
             return None, None
+    except SupabaseNoDisponible:
+        page._smartstore_session_offline_unavailable = True
     except Exception:
         pass
     try:
@@ -131,6 +142,8 @@ def cargar_sesion(page):
                 return usuario.correo, token
             borrar_sesion(page)
             return None, None
+    except SupabaseNoDisponible:
+        page._smartstore_session_offline_unavailable = True
     except Exception:
         pass
     return None, None
@@ -140,6 +153,7 @@ def borrar_sesion(page):
     invalidar_codigo_sesion(page)
     try:
         datos = page.client_storage.get(SESION_KEY)
+        db.revocar_sesion_offline((datos or {}).get("token"))
         db.revocar_token_sesion((datos or {}).get("token"))
     except Exception:
         pass
@@ -152,6 +166,7 @@ def borrar_sesion(page):
             try:
                 with open(SESION_FILE, "r", encoding="utf-8") as f:
                     datos = json.load(f)
+                db.revocar_sesion_offline((datos or {}).get("token"))
                 db.revocar_token_sesion((datos or {}).get("token"))
             except Exception:
                 pass
@@ -241,18 +256,30 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
     usuario_google = None
 
     # CAMPOS: controles compartidos por los modos iniciar sesión y registrarse.
-    titulo = ft.Text("Iniciar Sesión", size=28, weight=ft.FontWeight.BOLD, color="#040D4A")
+    titulo = ft.Text("Iniciar Sesión", size=28, weight=ft.FontWeight.BOLD, color="#00D9FF")
     ancho_campos = min(340, max(190, (page.width or 420) - 40))
     ancho_boton_ingresar = 120
     ancho_boton_registro = 195
     alto_boton_ingresar = 48
     alto_boton_registro = 48
-    estilo_etiqueta = ft.TextStyle(size=12)
-    correo_input = ft.TextField(label="Correo electrónico", label_style=estilo_etiqueta, value=correo_inicial, width=ancho_campos)
-    password_input = ft.TextField(label="Contraseña", label_style=estilo_etiqueta, value=password_inicial, password=True, can_reveal_password=True, width=ancho_campos)
-    nombre_input = ft.TextField(label="Nombre completo", label_style=estilo_etiqueta, width=ancho_campos, visible=False)
-    telefono_input = ft.TextField(label="Teléfono", label_style=estilo_etiqueta, width=ancho_campos, visible=False)
-    fecha_input = ft.TextField(label="Fecha de nacimiento (2009-05-15)", label_style=estilo_etiqueta, width=ancho_campos, visible=False)
+    correo_input = ft.TextField(value=correo_inicial, width=ancho_campos)
+    password_input = ft.TextField(value=password_inicial, password=True, can_reveal_password=True, width=ancho_campos)
+    nombre_input = ft.TextField(width=ancho_campos, visible=False)
+    telefono_input = ft.TextField(width=ancho_campos, visible=False)
+    fecha_input = ft.TextField(width=ancho_campos, visible=False)
+    for campo in (correo_input, password_input, nombre_input, telefono_input, fecha_input):
+        aplicar_estilo_campo_sobre_fondo(campo)
+    estilo_etiqueta_campo = dict(color="#FFFFFF", size=14, width=ancho_campos)
+    etiqueta_correo = ft.Text("Correo electrónico", **estilo_etiqueta_campo)
+    etiqueta_password = ft.Text("Contraseña", **estilo_etiqueta_campo)
+    etiqueta_nombre = ft.Text("Nombre completo", visible=False, **estilo_etiqueta_campo)
+    etiqueta_telefono = ft.Text("Teléfono", visible=False, **estilo_etiqueta_campo)
+    etiqueta_fecha = ft.Text("Fecha de nacimiento (2009-05-15)", visible=False, **estilo_etiqueta_campo)
+    grupo_correo = ft.Column([etiqueta_correo, correo_input], spacing=4, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+    grupo_password = ft.Column([etiqueta_password, password_input], spacing=4, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+    grupo_nombre = ft.Column([etiqueta_nombre, nombre_input], spacing=4, horizontal_alignment=ft.CrossAxisAlignment.CENTER, visible=False)
+    grupo_telefono = ft.Column([etiqueta_telefono, telefono_input], spacing=4, horizontal_alignment=ft.CrossAxisAlignment.CENTER, visible=False)
+    grupo_fecha = ft.Column([etiqueta_fecha, fecha_input], spacing=4, horizontal_alignment=ft.CrossAxisAlignment.CENTER, visible=False)
     imagen_perfil_path = None
     imagen_perfil_preview = ft.Container(width=48, height=48, bgcolor="#F3F3F3", border_radius=12, visible=False)
 
@@ -269,7 +296,7 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
     panel_codigo = ft.Container(visible=False)
     spinner_reconexion = ft.Container(
         visible=False,
-        content=ft.ProgressRing(width=24, height=24, stroke_width=3, color="#4D5F7A"),
+        content=ft.ProgressRing(width=24, height=24, stroke_width=3, color="#00D9FF"),
         width=28,
         height=28,
         alignment=ft.Alignment(0.5, 0.5),
@@ -297,7 +324,7 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
 
     # BOTÓN/ENLACE: abre la pantalla de recuperación de contraseña.
     btn_recuperar = ft.TextButton(
-        content=ft.Text("¿Olvidaste tu contraseña?", color="#4D5F7A"),
+        content=ft.Text("¿Olvidaste tu contraseña?", color="#FFFFFF"),
         on_click=lambda e: recuperar_view(page, go_to_menu),
         style=ft.ButtonStyle(
             shape=ft.RoundedRectangleBorder(radius=22),
@@ -376,9 +403,11 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
         correo_input.value = usuario_google.get("email") or ""
         nombre_input.value = metadatos.get("full_name") or metadatos.get("name") or ""
         password_input.value = ""
-        password_input.label = "Contraseña SmartStore"
+        etiqueta_password.value = "Contraseña SmartStore"
         password_input.can_reveal_password = True
         password_input.visible = True
+        etiqueta_password.visible = True
+        grupo_password.visible = True
         es_registro = True
         titulo.value = "Completa tu perfil"
         btn_accion.content = ft.Text("Guardar perfil")
@@ -386,8 +415,14 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
         btn_google.visible = False
         btn_recuperar.visible = False
         nombre_input.visible = True
+        etiqueta_nombre.visible = True
+        grupo_nombre.visible = True
         telefono_input.visible = True
+        etiqueta_telefono.visible = True
+        grupo_telefono.visible = True
         fecha_input.visible = True
+        etiqueta_fecha.visible = True
+        grupo_fecha.visible = True
         btn_imagen_perfil.visible = True
         mostrar_mensaje("Google autenticó tu correo. Crea una contraseña propia de SmartStore y completa tu perfil.", "#2F9416")
 
@@ -489,8 +524,14 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
         )
 
         nombre_input.visible = es_registro
+        etiqueta_nombre.visible = es_registro
+        grupo_nombre.visible = es_registro
         telefono_input.visible = es_registro
+        etiqueta_telefono.visible = es_registro
+        grupo_telefono.visible = es_registro
         fecha_input.visible = es_registro
+        etiqueta_fecha.visible = es_registro
+        grupo_fecha.visible = es_registro
         btn_imagen_perfil.visible = es_registro
         btn_google.visible = not es_registro
         imagen_perfil_preview.visible = es_registro and imagen_perfil_path is not None
@@ -890,11 +931,11 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
             [
                 ft.Container(height=40),
                 titulo,
-                correo_input,
-                password_input,
-                nombre_input,
-                telefono_input,
-                fecha_input,
+                grupo_correo,
+                grupo_password,
+                grupo_nombre,
+                grupo_telefono,
+                grupo_fecha,
                 btn_imagen_perfil,
                 imagen_perfil_preview,
                 spinner_reconexion,
@@ -917,6 +958,10 @@ def login_view(page: ft.Page, usuario_actual, go_to_menu, correo_inicial="", pas
         ancho_disponible = min(340, max(190, (page.width or 420) - 40))
         for campo in (correo_input, password_input, nombre_input, telefono_input, fecha_input):
             campo.width = ancho_disponible
+        for grupo in (grupo_correo, grupo_password, grupo_nombre, grupo_telefono, grupo_fecha):
+            grupo.width = ancho_disponible
+        for etiqueta in (etiqueta_correo, etiqueta_password, etiqueta_nombre, etiqueta_telefono, etiqueta_fecha):
+            etiqueta.width = ancho_disponible
         btn_google.width = ancho_disponible
         panel_mensaje_estado.width = ancho_disponible
 

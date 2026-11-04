@@ -1,4 +1,5 @@
 ﻿from .conexion import (
+    SupabaseNoDisponible,
     get_db_connection,
     _supabase_activo,
     _supabase_unico,
@@ -6,6 +7,16 @@
     _supabase_insertar,
     _supabase_actualizar,
     _supabase_borrar,
+)
+from .offline import (
+    actualizar_elemento_catalogo,
+    encolar_actualizacion,
+    encolar_creacion,
+    es_id_local,
+    guardar_catalogo,
+    nuevo_id_local,
+    obtener_catalogo,
+    obtener_elemento_cache_por_id,
 )
 from .models import Tienda
 import bcrypt, hashlib, secrets
@@ -35,11 +46,20 @@ def obtener_tienda():
 
 def obtener_tienda_usuario(usuario_id):
     if _supabase_activo():
-        tienda = _supabase_unico(
-            "tiendas",
-            f"?select=id,nombre,whatsapp,tasa_cambio,usuario_id,direccion,saldo,imagen&usuario_id=eq.{usuario_id}&limit=1",
-        )
-        return Tienda(*(tienda.get(campo) for campo in ("id", "nombre", "whatsapp", "tasa_cambio", "usuario_id", "direccion", "saldo", "imagen"))) if tienda else None
+        try:
+            filas_remotas = _supabase_lista(
+                "tiendas",
+                f"?select=id,nombre,whatsapp,tasa_cambio,usuario_id,direccion,saldo,imagen&usuario_id=eq.{usuario_id}",
+            )
+            guardar_catalogo(usuario_id, "tiendas", filas_remotas)
+            filas = obtener_catalogo(usuario_id, "tiendas")
+        except SupabaseNoDisponible:
+            filas = obtener_catalogo(usuario_id, "tiendas")
+        tiendas = [
+            Tienda(*(fila.get(campo) for campo in ("id", "nombre", "whatsapp", "tasa_cambio", "usuario_id", "direccion", "saldo", "imagen")))
+            for fila in filas
+        ]
+        return tiendas[0] if tiendas else None
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -55,9 +75,14 @@ def obtener_tienda_usuario(usuario_id):
 
 def obtener_tienda_por_id(tienda_id):
     if _supabase_activo():
-        tienda = _supabase_unico(
-            "tiendas", f"?select=id,nombre,whatsapp,tasa_cambio,usuario_id,direccion,saldo,imagen&id=eq.{tienda_id}&limit=1"
-        )
+        try:
+            tienda = _supabase_unico(
+                "tiendas", f"?select=id,nombre,whatsapp,tasa_cambio,usuario_id,direccion,saldo,imagen&id=eq.{tienda_id}&limit=1"
+            )
+            if tienda:
+                guardar_catalogo(tienda.get("usuario_id"), "tiendas", [tienda])
+        except SupabaseNoDisponible:
+            tienda = obtener_elemento_cache_por_id("tiendas", tienda_id)
         return Tienda(*(tienda.get(campo) for campo in ("id", "nombre", "whatsapp", "tasa_cambio", "usuario_id", "direccion", "saldo", "imagen"))) if tienda else None
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -74,7 +99,12 @@ def obtener_tienda_por_id(tienda_id):
 
 def obtener_tiendas_usuario(usuario_id):
     if _supabase_activo():
-        filas = _supabase_lista("tiendas", f"?select=id,nombre,whatsapp,tasa_cambio,usuario_id,direccion,saldo,imagen&usuario_id=eq.{usuario_id}")
+        try:
+            filas_remotas = _supabase_lista("tiendas", f"?select=id,nombre,whatsapp,tasa_cambio,usuario_id,direccion,saldo,imagen&usuario_id=eq.{usuario_id}")
+            guardar_catalogo(usuario_id, "tiendas", filas_remotas)
+        except SupabaseNoDisponible:
+            pass
+        filas = obtener_catalogo(usuario_id, "tiendas")
         return [Tienda(*(fila.get(campo) for campo in ("id", "nombre", "whatsapp", "tasa_cambio", "usuario_id", "direccion", "saldo", "imagen"))) for fila in filas]
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -92,12 +122,18 @@ def obtener_tiendas_usuario(usuario_id):
 def eliminar_tienda(tienda_id, usuario_id):
     """Elimina una tienda y sus datos relacionados solo si no conserva saldo."""
     if _supabase_activo():
-        tienda = _supabase_unico("tiendas", f"?select=saldo&id=eq.{tienda_id}&usuario_id=eq.{usuario_id}&limit=1")
+        try:
+            tienda = _supabase_unico("tiendas", f"?select=saldo&id=eq.{tienda_id}&usuario_id=eq.{usuario_id}&limit=1")
+        except SupabaseNoDisponible:
+            return False, "Eliminar una tienda requiere conexión a internet."
         if not tienda:
             return False, "No se encontró la tienda o no tienes permiso para eliminarla."
         if float(tienda.get("saldo") or 0) > 0:
             return False, "Retira primero el saldo de la billetera para no perder tus fondos."
-        _supabase_borrar("tiendas", f"?id=eq.{tienda_id}&usuario_id=eq.{usuario_id}")
+        try:
+            _supabase_borrar("tiendas", f"?id=eq.{tienda_id}&usuario_id=eq.{usuario_id}")
+        except SupabaseNoDisponible:
+            return False, "Eliminar una tienda requiere conexión a internet."
         return True, "Tienda eliminada correctamente."
     conn = get_db_connection()
     try:
@@ -139,14 +175,46 @@ def guardar_tienda(
 ):
     if _supabase_activo():
         try:
+            if usuario_id is not None and _supabase_unico(
+                "tiendas",
+                f"?select=id&usuario_id=eq.{usuario_id}&limit=1",
+            ):
+                return None
             tienda = _supabase_insertar(
                 "tiendas",
                 {"nombre": nombre, "whatsapp": whatsapp, "tasa_cambio": tasa_cambio,
                  "usuario_id": usuario_id, "direccion": direccion, "saldo": 0, "imagen": imagen},
             )
-            return tienda.get("id") if isinstance(tienda, dict) else None
-        except Exception:
-            return None
+        except SupabaseNoDisponible:
+            if usuario_id is None:
+                raise
+            if obtener_catalogo(usuario_id, "tiendas"):
+                return None
+            tienda_id = nuevo_id_local(usuario_id, "tiendas")
+            encolar_creacion(
+                usuario_id,
+                "tiendas",
+                tienda_id,
+                {
+                    "nombre": nombre,
+                    "whatsapp": whatsapp,
+                    "tasa_cambio": tasa_cambio,
+                    "usuario_id": usuario_id,
+                    "direccion": direccion,
+                    "saldo": 0,
+                    "imagen": imagen,
+                },
+            )
+            return tienda_id
+        except RuntimeError as error:
+            detalle = str(error).lower()
+            if "23505" in detalle or "duplicate key value violates unique constraint" in detalle:
+                return None
+            raise
+        if not isinstance(tienda, dict) or tienda.get("id") is None:
+            raise RuntimeError("Supabase no devolvió el identificador de la tienda creada.")
+        guardar_catalogo(usuario_id, "tiendas", [tienda])
+        return tienda["id"]
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
@@ -174,11 +242,37 @@ def guardar_tienda(
 
 def actualizar_tienda(tienda_id, usuario_id, nombre, whatsapp, tasa_cambio, direccion, imagen):
     if _supabase_activo():
-        resultado = _supabase_actualizar(
-            "tiendas",
-            {"nombre": nombre, "whatsapp": whatsapp, "tasa_cambio": tasa_cambio, "direccion": direccion, "imagen": imagen},
-            f"?id=eq.{tienda_id}&usuario_id=eq.{usuario_id}",
-        )
+        cambios = {
+            "nombre": nombre,
+            "whatsapp": whatsapp,
+            "tasa_cambio": tasa_cambio,
+            "direccion": direccion,
+            "imagen": imagen,
+        }
+        if es_id_local(tienda_id):
+            tiendas = obtener_catalogo(usuario_id, "tiendas")
+            if not any(str(fila.get("id")) == str(tienda_id) for fila in tiendas):
+                return False
+            if not encolar_actualizacion(usuario_id, "tiendas", tienda_id, cambios):
+                return False
+            actualizar_elemento_catalogo(usuario_id, "tiendas", tienda_id, cambios)
+            return True
+        try:
+            resultado = _supabase_actualizar(
+                "tiendas",
+                cambios,
+                f"?id=eq.{tienda_id}&usuario_id=eq.{usuario_id}",
+            )
+        except SupabaseNoDisponible:
+            tienda = obtener_catalogo(usuario_id, "tiendas")
+            if not any(str(fila.get("id")) == str(tienda_id) for fila in tienda):
+                return False
+            if not encolar_actualizacion(usuario_id, "tiendas", tienda_id, cambios):
+                return False
+            actualizar_elemento_catalogo(usuario_id, "tiendas", tienda_id, cambios)
+            return True
+        if resultado:
+            actualizar_elemento_catalogo(usuario_id, "tiendas", tienda_id, cambios)
         return bool(resultado)
     conn = get_db_connection()
     cursor = conn.cursor()

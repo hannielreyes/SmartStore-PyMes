@@ -27,6 +27,9 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
         for tarea in page._menu_animation_tasks:
             tarea.cancel()
         page._menu_animation_tasks.clear()
+        if getattr(page, "_menu_resize_handler", None) is not None:
+            page.on_resize = None
+            page._menu_resize_handler = None
         callback(*args)
 
     fondo = ft.Container(
@@ -38,6 +41,16 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
     )
 
     contexto = contexto or {}
+    catalogo_completo = contexto.get("catalogo_completo", True)
+    sincronizacion_pendiente = contexto.get(
+        "sincronizacion_pendiente",
+        db.contar_cambios_pendientes(usuario["id"]),
+    )
+    conflictos_sincronizacion = contexto.get(
+        "conflictos_sincronizacion",
+        db.contar_conflictos_offline(usuario["id"]),
+    )
+    error_sincronizacion = getattr(page, "_offline_sync_error", None)
     tiendas = contexto.get("tiendas")
     if tiendas is None:
         tiendas = db.obtener_tiendas_usuario(usuario['id'])
@@ -46,7 +59,7 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
         for fila in tiendas
     ]
     stock_total = contexto.get("stock_total")
-    if stock_total is None:
+    if stock_total is None and catalogo_completo:
         stock_total = db.obtener_stock_total_usuario(usuario['id'])
     alertas_inventario = contexto.get("alertas_inventario")
     if alertas_inventario is None:
@@ -116,6 +129,7 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
         page.update()
 
     ancho_cobertura = min(max((page.width or 360) - 80, 280), 595)
+    ancho_tarjetas = min(max((page.width or 360) - 100, 0), 420)
     encabezado_animacion = ft.Container(
         content=ft.Container(height=0),
         width=0,
@@ -151,9 +165,9 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
 
     textos_marca = ft.Row(
         [
-            ft.Text("Smart", size=28, weight=ft.FontWeight.BOLD, color="#0A1A75"),
-            ft.Text(" Store", size=28, weight=ft.FontWeight.BOLD, color="#000000"),
-            ft.Text(" PyMEs", size=22, weight=ft.FontWeight.BOLD, color="#000000"),
+            ft.Text("Smart", size=28, weight=ft.FontWeight.BOLD, color="#00D9FF"),
+            ft.Text(" Store", size=28, weight=ft.FontWeight.BOLD, color="#39FF14"),
+            ft.Text(" PyMEs", size=22, weight=ft.FontWeight.BOLD, color="#FF8C00"),
         ],
         alignment=ft.MainAxisAlignment.CENTER,
         visible=False,
@@ -209,19 +223,23 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
 
     lista_tiendas = ft.Row(
         tiendas_botones,
-            width=ancho_cobertura,
+        width=ancho_cobertura,
         spacing=10,
         height=55,
         alignment=ft.MainAxisAlignment.CENTER,
-                scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True),
-    ) if tiendas_botones else ft.Text("Aún no tienes tiendas. ¡Crea la primera! 😊", size=14, color="#595959")
-
-    # Estilo compartido por los botones principales del menú.
-    menu_button_style = ft.ButtonStyle(
-        color="#4D5F7A",
-        bgcolor="#EEF4FF",
-        overlay_color="#D9E8FF",
-        shadow_color="#D9E8FF",
+        scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True),
+    ) if tiendas_botones else ft.Container(
+        content=ft.Text(
+            "No hay una copia local de tus tiendas. Conéctate para cargar el catálogo."
+            if not catalogo_completo
+            else "Aún no tienes tiendas. ¡Crea la primera! 😊",
+            size=14,
+            color="#FFFFFF",
+            text_align=ft.TextAlign.CENTER,
+        ),
+        width=ancho_cobertura,
+        alignment=ft.Alignment(0, 0),
+        padding=ft.Padding(left=16, right=16, top=0, bottom=0),
     )
 
     # Mensajes reales de inventario: solo se usan si existen productos con poco stock.
@@ -379,27 +397,145 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
                 on_click=ocultar_aviso,
             )
 
-    # BOTONES DE NAVEGACIÓN PRINCIPAL: cada ancho se puede ajustar por separado.
-    ancho_btn_registrar = 250
-    ancho_btn_buscar = 250
-    ancho_btn_reservas = 250
-    ancho_btn_tienda = 250
+    def tarjeta_acceso(icono, titulo, detalle, color, fondo_tarjeta, callback):
+        return ft.Container(
+            content=ft.Column(
+                [
+                    ft.Container(
+                        content=ft.Icon(icono, size=20, color=color),
+                        width=34,
+                        height=34,
+                        bgcolor=fondo_tarjeta,
+                        border_radius=10,
+                        alignment=ft.Alignment(0.5, 0.5),
+                    ),
+                    ft.Text(
+                        titulo,
+                        size=13,
+                        weight=ft.FontWeight.BOLD,
+                        color="#17324D",
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                    ft.Text(
+                        detalle,
+                        size=10,
+                        color="#536579",
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                ],
+                spacing=3,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                alignment=ft.MainAxisAlignment.CENTER,
+            ),
+            col={"xs": 6, "sm": 6},
+            bgcolor="#FFFFFF",
+            border=ft.Border.all(1, "#E2E8F0"),
+            border_radius=12,
+            height=108,
+            padding=ft.Padding(left=6, right=6, top=6, bottom=6),
+            on_click=callback,
+        )
+
+    accesos_principales = ft.ResponsiveRow(
+        [
+            tarjeta_acceso(
+                ft.Icons.STORE,
+                "Crear tienda",
+                "Abre tu negocio",
+                "#008F83",
+                "#E8F8F5",
+                lambda e: salir_del_menu(go_to_tienda),
+            ),
+            tarjeta_acceso(
+                ft.Icons.ADD_BOX,
+                "Registrar producto",
+                "Agrega artículos",
+                "#1769AA",
+                "#EAF4FF",
+                lambda e: salir_del_menu(go_to_registrar),
+            ),
+            tarjeta_acceso(
+                ft.Icons.SEARCH,
+                "Buscar productos",
+                "Explora el catálogo",
+                "#7A4DB3",
+                "#F4EEFC",
+                lambda e: salir_del_menu(go_to_buscar),
+            ),
+            tarjeta_acceso(
+                ft.Icons.SHOPPING_BAG,
+                "Mis compras",
+                "Revisa tus pedidos",
+                "#D66A00",
+                "#FFF3E5",
+                lambda e: salir_del_menu(go_to_carrito),
+            ),
+        ],
+        width=ancho_tarjetas,
+        columns=12,
+        spacing=6,
+        run_spacing=6,
+        alignment=ft.MainAxisAlignment.CENTER,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+    )
 
     # Contenido central: textos, botones de navegación y tarjetas informativas.
     contenido_desplazable = ft.Column(
         [
-            ft.Text(f"👤 Bienvenido, {usuario['nombre']}", size=18, weight=ft.FontWeight.W_600, color="#040D4A"),
-            ft.Text("Gestiona tu negocio de forma inteligente", size=13, color="#555555"),
-            ft.ElevatedButton("🏪 Crear Tienda", on_click=lambda e: salir_del_menu(go_to_tienda), width=ancho_btn_tienda, color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
-            ft.ElevatedButton("📦 Registrar Producto", on_click=lambda e: salir_del_menu(go_to_registrar), width=ancho_btn_registrar, color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
-            ft.ElevatedButton("🔍 Buscar Productos", on_click=lambda e: salir_del_menu(go_to_buscar), width=ancho_btn_buscar, color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
-            ft.ElevatedButton("🛍️ Mis Compras", on_click=lambda e: salir_del_menu(go_to_carrito), width=ancho_btn_reservas, color="#4D5F7A", bgcolor="#EEF4FF", style=menu_button_style),
-            ft.Text("📊 Mis Tiendas", size=18, weight=ft.FontWeight.BOLD, color="#040D4A"),
+            ft.Text(f"👤 Bienvenido, {usuario['nombre']}", size=18, weight=ft.FontWeight.W_600, color="#00D9FF"),
+            ft.Text("Gestiona tu negocio de forma inteligente", size=13, color="#FFFFFF"),
+            *(
+                [
+                    ft.Text(
+                        "Catálogo no disponible localmente. Conéctate para cargar datos antes de mostrar cantidades.",
+                        size=12,
+                        color="#FFE0A6",
+                        text_align=ft.TextAlign.CENTER,
+                    )
+                ]
+                if not catalogo_completo
+                else []
+            ),
+            *(
+                [
+                    ft.Container(
+                        content=ft.Text(
+                            (
+                                f"⚠️ {conflictos_sincronizacion} cambio(s) en conflicto; "
+                                f"{max(0, sincronizacion_pendiente - conflictos_sincronizacion)} "
+                                "pendiente(s). Supabase prevalece en conflictos."
+                            )
+                            if conflictos_sincronizacion
+                            else (
+                                f"⚠️ {sincronizacion_pendiente} cambio(s) pendientes. "
+                                "No se pudieron sincronizar; revisa la migración de Supabase."
+                                if error_sincronizacion
+                                else f"⏳ {sincronizacion_pendiente} cambio(s) guardado(s) en este dispositivo; se sincronizarán al conectarte."
+                            ),
+                            color="#6B3D00",
+                            size=12,
+                            text_align=ft.TextAlign.CENTER,
+                        ),
+                        bgcolor="#FFF1D6",
+                        border_radius=10,
+                        padding=10,
+                        width=ancho_tarjetas,
+                    )
+                ]
+                if sincronizacion_pendiente
+                else []
+            ),
+            accesos_principales,
+            ft.Text("📊 Mis Tiendas", size=18, weight=ft.FontWeight.BOLD, color="#FFC247"),
             lista_tiendas,
             ft.Container(
                 content=ft.Column(
                     [
-                        ft.Text(f"Total de productos: {stock_total}", size=16, weight=ft.FontWeight.BOLD),
+                        ft.Text(
+                            f"Total de productos: {stock_total if stock_total is not None else '—'}",
+                            size=16,
+                            weight=ft.FontWeight.BOLD,
+                        ),
                         ft.Text("Estado del inventario", size=14, color="#555555"),
                         ft.Text("Toca para ver detalle →", size=11, color="#595959", italic=True),
                     ],
@@ -415,8 +551,22 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
             # BOTONES DE SESIÓN Y BILLETERA: accesos secundarios del menú.
             ft.Row(
                 [
-                    ft.TextButton("💳 Mi Billetera", on_click=lambda e: salir_del_menu(go_to_perfil), style=ft.ButtonStyle(color="#4D5F7A")),
-                    ft.TextButton("🚪 Cerrar Sesión", on_click=confirmar_cierre_sesion, style=ft.ButtonStyle(color="#4D5F7A")),
+                    ft.TextButton(
+                        "💳 Mi Billetera",
+                        on_click=lambda e: salir_del_menu(go_to_perfil),
+                        style=ft.ButtonStyle(
+                            bgcolor= "#040D4A",
+                            color ="#FFFFFF",
+                            ),
+                        ),
+                    ft.TextButton(
+                        "🚪 Cerrar Sesión",
+                        on_click=confirmar_cierre_sesion,
+                        style=ft.ButtonStyle(
+                            bgcolor="#040D4A",
+                            color="#FFFFFF",
+                        ),
+                    ),
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_EVENLY,
             ),
@@ -447,6 +597,18 @@ def menu_view(page: ft.Page, usuario, logout, go_to_registrar, go_to_buscar, go_
         padding=20,
         expand=True,
     )
+
+    def ajustar_ancho_menu(e):
+        nuevo_ancho = min(max((page.width or 360) - 80, 280), 595)
+        nuevo_ancho_tarjetas = min(max((page.width or 360) - 100, 0), 420)
+        encabezado_row.width = nuevo_ancho
+        lista_tiendas.width = nuevo_ancho
+        accesos_principales.width = nuevo_ancho_tarjetas
+        page.update()
+
+    encabezado_row = contenido.content.controls[1]
+    page._menu_resize_handler = ajustar_ancho_menu
+    page.on_resize = ajustar_ancho_menu
 
     page._menu_animation_tasks.extend([
         page.run_task(animar_marca_header),

@@ -107,7 +107,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
     nueva_pass = ft.TextField(label="Nueva contraseña", password=True, can_reveal_password=True, width=300)
     confirm_pass = ft.TextField(label="Confirmar contraseña", password=True, can_reveal_password=True, width=300, visible=False)
     codigo_pass = ft.TextField(label="Código de seguridad de esta sesión", password=True, can_reveal_password=False, width=300)
-    mensaje_pass = ft.Text("", size=12, color="#B3261E", visible=False)
+    mensaje_pass = ft.Text("", size=12, color="#FF8A80", visible=False)
     en_confirmacion = False
     nueva_pass_contenedor = ft.Container(
         content=nueva_pass,
@@ -125,7 +125,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
         nonlocal en_confirmacion
         if not nueva_pass.value.strip():
             mensaje_pass.value = "Escribe una contraseña nueva para continuar 😊"
-            mensaje_pass.color = "#B3261E"
+            mensaje_pass.color = "#FF8A80"
             mensaje_pass.visible = True
             page.update()
             return
@@ -179,19 +179,19 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
             return
         if not confirm_pass.value.strip():
             mensaje_pass.value = "Confirma tu contraseña para continuar 😊"
-            mensaje_pass.color = "#B3261E"
+            mensaje_pass.color = "#FF8A80"
             mensaje_pass.visible = True
             page.update()
             return
         if nueva_pass.value != confirm_pass.value:
             mensaje_pass.value = "Las contraseñas no coinciden. Revisa e inténtalo nuevamente 😊"
-            mensaje_pass.color = "#B3261E"
+            mensaje_pass.color = "#FF8A80"
             mensaje_pass.visible = True
             page.update()
             return
         if not codigo_sesion_valido(page, codigo_pass.value.strip()):
             mensaje_pass.value = "🔐 El código de seguridad no es válido o ya expiró."
-            mensaje_pass.color = "#B3261E"
+            mensaje_pass.color = "#FF8A80"
             mensaje_pass.visible = True
             page.update()
             return
@@ -243,7 +243,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
             ], spacing=6, tight=True),
             actions=[
                 # BOTÓN: cierra el aviso de contraseña actualizada.
-                ft.ElevatedButton("Aceptar", on_click=cerrar_dialog, bgcolor="#040D4A", color="#FFFFFF")
+                ft.ElevatedButton("Aceptar", on_click=cerrar_dialog, bgcolor="#F80A06", color="#FFFFFF")
             ],
             actions_alignment=ft.MainAxisAlignment.CENTER,
         )
@@ -269,7 +269,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
     bloque_contraseña = ft.Column(
         [
             ft.Divider(height=20),
-            ft.Text("🔑 Cambiar Contraseña", size=16, weight=ft.FontWeight.BOLD),
+            ft.Text("🔑 Cambiar Contraseña", size=16, weight=ft.FontWeight.BOLD, color="#FFC247"),
             nueva_pass_contenedor,
             btn_siguiente,
             confirm_pass_contenedor,
@@ -345,6 +345,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
             title="Seleccionar imagen de perfil",
             on_cancel=lambda: page.update(),
         ),
+        style=ft.ButtonStyle(color="#FFFFFF"),
     )
 
     # Interruptor de avisos: tamaño, color y estado persistente de las notificaciones.
@@ -370,18 +371,18 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
         content=ft.Column(
             [
                 ft.Container(height=20),
-                ft.Text("👤 Mi Perfil", size=28, weight=ft.FontWeight.BOLD, color="#040D4A"),
+                ft.Text("👤 Mi Perfil", size=28, weight=ft.FontWeight.BOLD, color="#00D9FF"),
                 ft.Divider(height=10),
-                ft.Text("👤 Datos Personales", size=16, weight=ft.FontWeight.BOLD),
+                ft.Text("👤 Datos Personales", size=16, weight=ft.FontWeight.BOLD, color="#FFC247"),
                 perfil_imagen_control,
                 texto_imagen_perfil_control,
-                ft.Text(f"📝 {usuario['nombre']}", size=16),
-                ft.Text(f"📧 {usuario['correo']}", size=14, color="#666666"),
+                ft.Text(f"📝 {usuario['nombre']}", size=16, color="#FFFFFF"),
+                ft.Text(f"📧 {usuario['correo']}", size=14, color="#FFFFFF"),
                 btn_editar_perfil,
                 ft.Divider(height=12),
                 ft.Row(
                     [
-                        ft.Text("🔔 Avisos de SmartStore", size=15, weight=ft.FontWeight.BOLD),
+                        ft.Text("🔔 Avisos de SmartStore", size=15, weight=ft.FontWeight.BOLD, color="#FFFFFF"),
                         notificaciones_switch,
                     ],
                     alignment=ft.MainAxisAlignment.CENTER,
@@ -390,7 +391,7 @@ def perfil_usuario_view(page: ft.Page, usuario, go_back):
                 ft.Text(
                     "Controla los avisos de inventario, tiendas y reservas.",
                     size=12,
-                    color="#666666",
+                    color="#FFFFFF",
                     text_align=ft.TextAlign.CENTER,
                 ),
                 bloque_contraseña,

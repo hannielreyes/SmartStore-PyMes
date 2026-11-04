@@ -22,7 +22,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
 
     fondo = ft.Container(
         expand=True,
-        image=ft.DecorationImage(src="fondo.png", fit="cover"),
+        image=ft.DecorationImage(src="foondo.png", fit="cover"),
     )
 
     def mostrar_aviso_camara_no_disponible():
@@ -162,6 +162,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
             seccion_calculadora.visible = False
             tasa_texto.visible = True
             nombre_input_reg.visible = True
+            categoria_input.visible = True
             marca_input.visible = True
             talla_input.visible = True
             precio_input_reg.visible = True
@@ -200,6 +201,7 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
             seccion_calculadora.visible = True
             tasa_texto.visible = False
             nombre_input_reg.visible = False
+            categoria_input.visible = False
             marca_input.visible = False
             talla_input.visible = False
             precio_input_reg.visible = False
@@ -529,11 +531,19 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
 
             if imagen_producto_path and imagen_producto_2_path:
                 imagen_rel_2 = guardar_imagen_en_assets(imagen_producto_2_path, prefijo="producto_2")
-            db.registrar_producto(
+            guardado = db.registrar_producto(
                 nombre, marca, talla, precio, precio_dolares, cantidad,
                 tienda_id, imagen_rel, usuario["id"], categoria_input.value, imagen_rel_2,
                 descripcion, estado_producto, etiquetas, None, color_principal, material, garantia, especificacion,
             )
+            if not guardado:
+                mostrar_snackbar(
+                    page,
+                    "❌ No se pudo guardar el producto en una tienda. Verifica que la tienda siga disponible.",
+                    color="#B3261E",
+                )
+                return
+            page._smartstore_context = None
             resultado_texto.value = f"✅ '{nombre}' registrado con éxito."
             resultado_texto.color = "#000000"
             resultado_texto.weight = ft.FontWeight.BOLD
@@ -569,7 +579,11 @@ def registrar_producto_view(page: ft.Page, usuario, go_back):
     def mostrar_dialogo_tienda(nombre, marca, talla, precio, precio_dolares, cantidad, descripcion="", estado_producto="Nuevo", etiquetas="", color_principal="", material="", garantia="", especificacion=""):
         tiendas_usuario = db.obtener_tiendas_usuario(usuario['id'])
         if not tiendas_usuario:
-            hacer_registro(nombre, marca, talla, precio, precio_dolares, cantidad, None, descripcion, estado_producto, etiquetas, color_principal, material, garantia, especificacion)
+            mostrar_snackbar(
+                page,
+                "❌ Primero crea una tienda para poder guardar productos en tu inventario.",
+                color="#B3261E",
+            )
             return
 
         def hacer_seleccion(id_tienda):

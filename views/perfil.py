@@ -158,13 +158,13 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
         content=ft.Column(
             [
                 ft.Container(height=20),
-                ft.Text("💳 Mi Billetera", size=28, weight=ft.FontWeight.BOLD, color="#040D4A"),
+                ft.Text("💳 Mi Billetera", size=28, weight=ft.FontWeight.BOLD, color="#00D9FF"),
                 ft.Divider(height=18),
-                ft.Text(titulo_billeteras, size=16, weight=ft.FontWeight.BOLD),
+                ft.Text(titulo_billeteras, size=16, weight=ft.FontWeight.BOLD, color="#FFC247"),
                 lista_billeteras,
                 ft.Divider(height=18),
-                ft.Text("💳 Configuración de pagos", size=16, weight=ft.FontWeight.BOLD),
-                ft.Text(f"📧 {paypal_actual}", size=13, color="#000000") if paypal_actual else ft.Container(),
+                ft.Text("💳 Configuración de pagos", size=16, weight=ft.FontWeight.BOLD, color="#FFC247"),
+                ft.Text(f"📧 {paypal_actual}", size=13, color="#FFFFFF") if paypal_actual else ft.Container(),
                 ft.ElevatedButton(
                     texto_paypal,
                     on_click=vincular_paypal,
@@ -176,7 +176,7 @@ def perfil_view(page: ft.Page, usuario, go_back, logout, go_to_control_reservas)
                 ft.Text(
                     "📌 Vincula PayPal para recibir los pagos de tus ventas.",
                     size=12,
-                    color="#555555",
+                    color="#FFFFFF",
                     italic=True,
                 ) if not paypal_actual else ft.Container(),
                 ft.Container(height=10),

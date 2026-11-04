@@ -31,6 +31,7 @@ create table if not exists public.tiendas (
     direccion text,
     saldo numeric(14, 2) not null default 0,
     imagen text,
+    offline_uuid uuid unique,
     constraint una_tienda_por_usuario unique (usuario_id)
 );
 
@@ -53,7 +54,8 @@ create table if not exists public.productos (
     color_principal text,
     material text,
     garantia text,
-    especificacion text
+    especificacion text,
+    offline_uuid uuid unique
 );
 
 create table if not exists public.reservas (

@@ -42,6 +42,27 @@ def log_error(message, exc_info=True):
     get_logger().error(message, exc_info=exc_info)
 
 
+def aplicar_estilo_campo_sobre_fondo(campo: ft.TextField | ft.Dropdown) -> None:
+    color_texto = "#000000"
+    campo.color = color_texto
+    campo.text_style = ft.TextStyle(color=color_texto)
+    campo.label_style = ft.TextStyle(
+        color="#000000",
+        size=14,
+        weight=ft.FontWeight.W_600,
+    )
+    campo.filled = False
+    campo.fill_color = None
+    campo.content_padding = ft.Padding(left=12, right=12, top=20, bottom=12)
+    campo.border_color = "#CBD5E1"
+    campo.focused_border_color = "#00D9FF"
+    campo.focused_border_width = 2
+
+    if isinstance(campo, ft.TextField):
+        campo.cursor_color = "#00D9FF"
+        campo.selection_color = "#B8F2FF"
+
+
 def tema_smartstore():
     """Tema global con una paleta neón coherente para todos los botones."""
     estado = ft.ControlState

@@ -1,4 +1,4 @@
-﻿ # EL main.py sirve para ejecutar todo el el programa es el que llama a todas las funciones para que se muetren en pantalla es el corazon y el motor de la es el que despierta a la computadora
+﻿# EL main.py sirve para ejecutar todo el el programa es el que llama a todas las funciones para que se muetren en pantalla es el corazon y el motor de la es el que despierta a la computadora
 import asyncio
 import flet as ft 
 from utils import comprobar_actualizacion, mostrar_snackbar, tema_smartstore
@@ -103,6 +103,13 @@ def main(page: ft.Page):
                 go_to_menu(usuario_dict)
                 return
         login_view(page, usuario_actual, go_to_menu)
+        if getattr(page, "_smartstore_session_offline_unavailable", False):
+            mostrar_snackbar(
+                page,
+                "Conéctate una vez para validar tu cuenta en este dispositivo. Después podrás entrar sin internet.",
+                color="#8A4B08",
+            )
+            page._smartstore_session_offline_unavailable = False
 
     def go_to_menu(usuario):
         # NAVEGACIÓN: abre la pantalla principal después de autenticar al usuario.
@@ -223,6 +230,8 @@ def main(page: ft.Page):
     def logout():
         nonlocal usuario_actual
         usuario_actual = None
+        page._smartstore_start_user = None
+        page._smartstore_context = None
         from views.login import borrar_sesion
         borrar_sesion(page)
         login_view(page, usuario_actual, go_to_menu)
@@ -248,10 +257,32 @@ def main(page: ft.Page):
         finally:
             page._smartstore_start_ready.set()
 
+    async def sincronizar_periodicamente():
+        await page._smartstore_start_ready.wait()
+        while True:
+            usuario = usuario_actual or getattr(page, "_smartstore_start_user", None)
+            if usuario:
+                try:
+                    resultado = await asyncio.to_thread(
+                        db.sincronizar_cambios_offline,
+                        usuario["id"],
+                    )
+                    if resultado["sincronizados"]:
+                        page._smartstore_context = None
+                    page._offline_sync_error = None
+                except Exception as error:
+                    mensaje_error = str(error)
+                    if getattr(page, "_offline_sync_error", None) != mensaje_error:
+                        from utils import log_error
+                        log_error(f"No se pudo sincronizar cambios offline: {error}")
+                    page._offline_sync_error = mensaje_error
+            await asyncio.sleep(60)
+
     # ARRANQUE: muestra la primera pantalla de carga y después inicia la actualización.
     page._smartstore_start_ready = asyncio.Event()
     pre_splash_view(page, go_to_splash)
     page.run_task(precargar_inicio)
+    page.run_task(sincronizar_periodicamente)
     page.update()
     page.run_task(comprobar_actualizacion, page)
 

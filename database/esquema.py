@@ -9,6 +9,10 @@ from .conexion import (
     get_db_connection,
     PAYPAL_VENDEDOR_SANDBOX,
 )
+from .offline import (
+    inicializar_almacen_offline,
+    recuperar_sincronizacion_interrumpida,
+)
 
 
 def inicializar_bd():
@@ -205,7 +209,9 @@ def inicializar_bd():
     )
 
     conn.commit()
+    inicializar_almacen_offline(conn)
     conn.close()
+    recuperar_sincronizacion_interrumpida()
     print(
         f"Base de datos local inicializada. Vendedor PayPal: {PAYPAL_VENDEDOR_SANDBOX}"
     )

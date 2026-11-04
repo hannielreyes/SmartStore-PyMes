@@ -32,6 +32,11 @@ _SUPABASE_FALLIDA = False
 _SUPABASE_FALLIDA_HASTA = None
 _SUPABASE_FALLIDA_COOLDOWN = timedelta(seconds=45)
 
+
+class SupabaseNoDisponible(RuntimeError):
+    """Raised only when a transient network/server failure prevents a request."""
+
+
 PAYPAL_VENDEDOR_SANDBOX = "sb-zfl8251875274@business.example.com"
 PAYPAL_COMPRADOR_SANDBOX = "sb-ysdcv52256136@personal.example.com"
 
@@ -40,6 +45,8 @@ def _marcar_supabase_caido(mensaje=""):
     global _SUPABASE_FALLIDA, _SUPABASE_FALLIDA_HASTA
     if "42703" in str(mensaje) or "column" in str(mensaje).lower() and "does not exist" in str(mensaje).lower():
         print(f"[Supabase] El esquema necesita una migración; se conserva la conexión remota. {mensaje}")
+        return
+    if not _es_fallo_transitorio(mensaje):
         return
     if _SUPABASE_FALLIDA:
         return
@@ -64,13 +71,38 @@ def _supabase_activo():
             _SUPABASE_FALLIDA = False
             _SUPABASE_FALLIDA_HASTA = None
             print("[Supabase] Reintentando conexion con Supabase tras recuperacion temporal.")
-        else:
-            return False
     return True
+
+
+def _supabase_en_cooldown():
+    if not _SUPABASE_FALLIDA:
+        return False
+    if _SUPABASE_FALLIDA_HASTA is not None and datetime.now() >= _SUPABASE_FALLIDA_HASTA:
+        return False
+    return True
+
+
+def _es_fallo_transitorio(exc):
+    detalle = str(exc).lower()
+    return (
+        "no se pudo contactar supabase" in detalle
+        or "timed out" in detalle
+        or any(f"http {codigo}" in detalle for codigo in (500, 502, 503, 504))
+    )
+
+
+def _error_remoto(tabla, accion, exc):
+    _marcar_supabase_caido(f"Error {accion} en {tabla}: {exc}")
+    mensaje = f"No hay conexión a internet o Supabase no está disponible: {exc}"
+    if _es_fallo_transitorio(exc):
+        return SupabaseNoDisponible(mensaje)
+    return RuntimeError(mensaje)
 
 
 def _supabase_lista(tabla, parametros=""):
     global _SUPABASE_FALLIDA, _SUPABASE_FALLIDA_HASTA
+    if _supabase_en_cooldown():
+        raise SupabaseNoDisponible("Supabase está temporalmente no disponible.")
     try:
         _, datos = supabase_request(tabla, parametros=parametros)
         if _SUPABASE_FALLIDA:
@@ -83,8 +115,7 @@ def _supabase_lista(tabla, parametros=""):
         # remotos con el SQLite local.
         if "42703" in str(exc) or "column" in str(exc).lower() and "does not exist" in str(exc).lower():
             raise RuntimeError(f"El esquema de Supabase necesita una migración: {exc}") from exc
-        _marcar_supabase_caido(f"Error en consulta a {tabla}: {exc}")
-        raise RuntimeError(f"No hay conexión a internet o la base de datos no está disponible: {exc}") from exc
+        raise _error_remoto(tabla, "de consulta", exc) from exc
 
 
 def _supabase_unico(tabla, parametros=""):
@@ -94,6 +125,8 @@ def _supabase_unico(tabla, parametros=""):
 
 def _supabase_insertar(tabla, datos):
     global _SUPABASE_FALLIDA, _SUPABASE_FALLIDA_HASTA
+    if _supabase_en_cooldown():
+        raise SupabaseNoDisponible("Supabase está temporalmente no disponible.")
     try:
         _, resultado = supabase_request(tabla, metodo="POST", datos=datos)
         if _SUPABASE_FALLIDA:
@@ -101,12 +134,13 @@ def _supabase_insertar(tabla, datos):
             _SUPABASE_FALLIDA_HASTA = None
         return resultado[0] if isinstance(resultado, list) and resultado else resultado
     except Exception as exc:
-        _marcar_supabase_caido(f"Error al insertar en {tabla}: {exc}")
-        raise RuntimeError(f"No hay conexión a internet o la base de datos no está disponible: {exc}") from exc
+        raise _error_remoto(tabla, "al insertar", exc) from exc
 
 
 def _supabase_actualizar(tabla, datos, parametros):
     global _SUPABASE_FALLIDA, _SUPABASE_FALLIDA_HASTA
+    if _supabase_en_cooldown():
+        raise SupabaseNoDisponible("Supabase está temporalmente no disponible.")
     try:
         _, resultado = supabase_request(tabla, metodo="PATCH", datos=datos, parametros=parametros)
         if _SUPABASE_FALLIDA:
@@ -114,20 +148,20 @@ def _supabase_actualizar(tabla, datos, parametros):
             _SUPABASE_FALLIDA_HASTA = None
         return resultado
     except Exception as exc:
-        _marcar_supabase_caido(f"Error al actualizar en {tabla}: {exc}")
-        raise RuntimeError(f"No hay conexión a internet o la base de datos no está disponible: {exc}") from exc
+        raise _error_remoto(tabla, "al actualizar", exc) from exc
 
 
 def _supabase_borrar(tabla, parametros):
     global _SUPABASE_FALLIDA, _SUPABASE_FALLIDA_HASTA
+    if _supabase_en_cooldown():
+        raise SupabaseNoDisponible("Supabase está temporalmente no disponible.")
     try:
         supabase_request(tabla, metodo="DELETE", parametros=parametros)
         if _SUPABASE_FALLIDA:
             _SUPABASE_FALLIDA = False
             _SUPABASE_FALLIDA_HASTA = None
     except Exception as exc:
-        _marcar_supabase_caido(f"Error al borrar en {tabla}: {exc}")
-        raise RuntimeError(f"No hay conexión a internet o la base de datos no está disponible: {exc}") from exc
+        raise _error_remoto(tabla, "al borrar", exc) from exc
 
 
 def get_db_connection():

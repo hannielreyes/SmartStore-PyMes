@@ -88,6 +88,7 @@ def editar_tienda_view(page: ft.Page, usuario, tienda_id, go_back):
 
         dialogo.open = False
         page.update()
+        page._smartstore_context = None
         mostrar_snackbar(page, "✅ Tienda actualizada correctamente.", color="#1B5E20")
         go_back()
 

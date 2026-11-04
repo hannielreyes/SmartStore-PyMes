@@ -63,7 +63,7 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
 
     fondo = ft.Container(
         expand=True,
-        image=ft.DecorationImage(src="fondo.png", fit="cover"),
+        image=ft.DecorationImage(src="foondo.png", fit="cover"),
     )
 
     def mostrar_aviso_camara_no_disponible():
@@ -563,7 +563,16 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
         page.update()
 
     def guardar_tienda(e):
-        tiendas_existentes = db.obtener_tiendas_usuario(usuario['id'])
+        try:
+            tiendas_existentes = db.obtener_tiendas_usuario(usuario['id'])
+        except Exception as error:
+            print(f"[Crear tienda] No se pudieron consultar las tiendas existentes: {error}")
+            mostrar_snackbar(
+                page,
+                f"❌ No se pudo verificar si ya tienes una tienda: {error}",
+                color="#B3261E",
+            )
+            return
         if tiendas_existentes:
             mostrar_snackbar(
                 page,
@@ -634,10 +643,26 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
             ))
 
         imagen_tienda_rel = None
-        if tienda_imagen_path:
-            imagen_tienda_rel = guardar_imagen_en_assets(tienda_imagen_path, prefijo="tienda")
+        try:
+            if tienda_imagen_path:
+                imagen_tienda_rel = guardar_imagen_en_assets(tienda_imagen_path, prefijo="tienda")
 
-        tienda_id = db.guardar_tienda(nombre, whatsapp_input.value, tasa, usuario['id'], direccion_input.value.strip(), imagen_tienda_rel)
+            tienda_id = db.guardar_tienda(
+                nombre,
+                whatsapp_input.value,
+                tasa,
+                usuario['id'],
+                direccion_input.value.strip(),
+                imagen_tienda_rel,
+            )
+        except Exception as error:
+            print(f"[Crear tienda] No se pudo guardar la tienda: {error}")
+            mostrar_snackbar(
+                page,
+                f"❌ No se pudo guardar la tienda: {error}",
+                color="#B3261E",
+            )
+            return
         if tienda_id is None:
             mostrar_snackbar(
                 page,
@@ -646,35 +671,53 @@ def crear_tienda_view(page: ft.Page, usuario, go_back):
             )
             return
 
+        productos_no_guardados = []
         for prod in productos_temp:
-            imagen_prod_rel = guardar_imagen_en_assets(prod.imagen, prefijo="producto") if prod.imagen else None
-            imagen_prod_rel_2 = (
-                guardar_imagen_en_assets(prod.imagen_2, prefijo="producto_2")
-                if prod.imagen and prod.imagen_2
-                else None
-            )
-            db.registrar_producto(
-                prod.nombre,
-                prod.marca,
-                prod.talla,
-                prod.precio_cordobas,
-                prod.precio_dolares,
-                prod.cantidad,
-                tienda_id,
-                imagen=imagen_prod_rel,
-                usuario_id=usuario["id"],
-                categoria=prod.categoria or "General",
-                imagen_2=imagen_prod_rel_2,
-                descripcion=prod.descripcion,
-                estado_producto=prod.estado_producto,
-                etiquetas=prod.etiquetas,
-                color_principal=prod.color_principal,
-                material=prod.material,
-                garantia=prod.garantia,
-                especificacion=prod.especificacion,
-            )
+            try:
+                imagen_prod_rel = guardar_imagen_en_assets(prod.imagen, prefijo="producto") if prod.imagen else None
+                imagen_prod_rel_2 = (
+                    guardar_imagen_en_assets(prod.imagen_2, prefijo="producto_2")
+                    if prod.imagen_2
+                    else None
+                )
+                registrado = db.registrar_producto(
+                    prod.nombre,
+                    prod.marca,
+                    prod.talla,
+                    prod.precio_cordobas,
+                    prod.precio_dolares,
+                    prod.cantidad,
+                    tienda_id,
+                    imagen=imagen_prod_rel,
+                    usuario_id=usuario["id"],
+                    categoria=prod.categoria or "General",
+                    imagen_2=imagen_prod_rel_2,
+                    descripcion=prod.descripcion,
+                    estado_producto=prod.estado_producto,
+                    etiquetas=prod.etiquetas,
+                    color_principal=prod.color_principal,
+                    material=prod.material,
+                    garantia=prod.garantia,
+                    especificacion=prod.especificacion,
+                )
+                if not registrado:
+                    productos_no_guardados.append(prod.nombre)
+            except Exception as error:
+                print(f"[Crear tienda] No se pudo guardar el producto '{prod.nombre}': {error}")
+                productos_no_guardados.append(prod.nombre)
 
-        mostrar_snackbar(page, "✅ ¡Tu tienda fue creada correctamente!")
+        if productos_no_guardados:
+            nombres = ", ".join(productos_no_guardados[:3])
+            restantes = len(productos_no_guardados) - 3
+            detalle = f" Otros {restantes} producto(s) tampoco se guardaron." if restantes > 0 else ""
+            mostrar_snackbar(
+                page,
+                f"⚠️ La tienda se creó, pero no se pudieron guardar: {nombres}.{detalle}",
+                color="#8A4B08",
+            )
+        else:
+            mostrar_snackbar(page, "✅ ¡Tu tienda fue creada correctamente!")
+        page._smartstore_context = None
         go_back(usuario)
 
     nombre_input.on_submit = guardar_tienda

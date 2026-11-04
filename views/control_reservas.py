@@ -1,7 +1,13 @@
 import flet as ft
 import database as db
+from database.conexion import SupabaseNoDisponible
 from database.models import EntregaTienda, ReservaTienda, Tienda
-from utils import configurar_retroceso, mostrar_snackbar, imagen_disponible
+from utils import (
+    aplicar_estilo_campo_sobre_fondo,
+    configurar_retroceso,
+    mostrar_snackbar,
+    imagen_disponible,
+)
 from configuaraciones_adicionales.editar_tienda import editar_tienda_view
 from datetime import datetime
 import threading
@@ -25,7 +31,45 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
 
     fila_tienda = db.obtener_tienda_por_id(tienda_id)
     if not fila_tienda:
-        page.add(ft.Text("❌ No encontramos la tienda. Revisa la información e inténtalo nuevamente 😊", width=320, text_align=ft.TextAlign.CENTER))
+        def volver_al_menu(e):
+            page._smartstore_context = None
+            go_to_menu()
+
+        contenido_error = ft.Column(
+            [
+                ft.Text(
+                    "❌ No pudimos cargar los datos de esta tienda. "
+                    "Vuelve al menú para actualizar la lista e inténtalo de nuevo 😊",
+                    width=320,
+                    text_align=ft.TextAlign.CENTER,
+                ),
+                ft.ElevatedButton(
+                    "↩️ Volver al Menú",
+                    on_click=volver_al_menu,
+                    bgcolor="#040D4A",
+                    color="#FFFFFF",
+                ),
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            alignment=ft.MainAxisAlignment.CENTER,
+            spacing=16,
+        )
+        page.add(
+            ft.Stack(
+                [
+                    fondo,
+                    ft.SafeArea(
+                        ft.Container(
+                            content=contenido_error,
+                            alignment=ft.Alignment(0, 0),
+                            expand=True,
+                        )
+                    ),
+                ],
+                expand=True,
+            )
+        )
+        page.update()
         return
 
     tienda = Tienda.desde_fila(fila_tienda)
@@ -43,7 +87,12 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
             )
 
     usuario_id = tienda.usuario_id
-    paypal_email = db.obtener_paypal_email(usuario_id)
+    conexion_disponible = True
+    try:
+        paypal_email = db.obtener_paypal_email(usuario_id)
+    except SupabaseNoDisponible:
+        paypal_email = None
+        conexion_disponible = False
 
     def editar_tienda(e):
         # ACCIÓN: abre la pantalla de edición de la tienda actual.
@@ -66,8 +115,14 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
             content=ft.Column(
                 [
                     ft.Container(height=40),
-                    ft.Text("💰 Billetera de la tienda", size=28, weight=ft.FontWeight.BOLD, color="#040D4A"),
+                    ft.Text("💰 Billetera de la tienda", size=28, weight=ft.FontWeight.BOLD, color="#FFFFFF"),
                     ft.Divider(height=10),
+                    ft.Text(
+                        "La billetera y las reservas necesitan conexión."
+                        if not conexion_disponible
+                        else "Para gestionar pagos debes vincular una cuenta PayPal.",
+                        size=15,
+                    ),
                     ft.Card(
                         content=ft.Container(
                             content=ft.Column([
@@ -92,6 +147,18 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                         on_click=lambda e: go_to_perfil(),
                         width=ancho_btn_volver_perfil,
                     ),
+                    *(
+                        [
+                            ft.ElevatedButton(
+                                "✏️ Editar tienda sin conexión",
+                                on_click=editar_tienda,
+                                bgcolor="#7042B8",
+                                color="#FFFFFF",
+                            )
+                        ]
+                        if not conexion_disponible
+                        else []
+                    ),
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 alignment=ft.MainAxisAlignment.CENTER,
@@ -113,8 +180,19 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
         page.update()
         return
 
-    saldo_actual = db.obtener_saldo_tienda(tienda_id) if mostrar_billetera else 0
-    saldo_text = ft.Text(f"Billetera: C${saldo_actual:.2f}", size=18, weight=ft.FontWeight.BOLD, color="#040D4A")
+    try:
+        saldo_actual = db.obtener_saldo_tienda(tienda_id) if mostrar_billetera else 0
+    except SupabaseNoDisponible:
+        saldo_actual = None
+        conexion_disponible = False
+    saldo_text = ft.Text(
+        f"Billetera: C${saldo_actual:.2f}"
+        if saldo_actual is not None
+        else "Billetera: requiere conexión",
+        size=18,
+        weight=ft.FontWeight.BOLD,
+        color="#040D4A",
+    )
 
     billetera_card = ft.Card(
         content=ft.Container(
@@ -130,10 +208,15 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
 
     # CONTROLES: lista de pedidos pendientes y botones de cambio de estado.
     lista_por_entregar = ft.Column(spacing=10, scroll=ft.Scrollbar(thickness=4, radius=4, interactive=True), height=250)
-    codigo_retiro_field = ft.TextField(label="Código de retiro del cliente", width=320, text_capitalization=ft.TextCapitalization.CHARACTERS)
+    codigo_retiro_field = ft.TextField(label="Código de retiro del cliente", width=320)
+    aplicar_estilo_campo_sobre_fondo(codigo_retiro_field)
 
     def canjear_codigo(_):
-        ok, mensaje = db.canjear_codigo_retiro(tienda_id, usuario_id, codigo_retiro_field.value)
+        try:
+            ok, mensaje = db.canjear_codigo_retiro(tienda_id, usuario_id, codigo_retiro_field.value)
+        except SupabaseNoDisponible:
+            mostrar_snackbar(page, "Validar una entrega requiere conexión a internet.", color="#B3261E")
+            return
         mostrar_snackbar(page, mensaje, color="#1B5E20" if ok else "#B3261E", duracion=5000)
         if ok:
             codigo_retiro_field.value = ""
@@ -143,14 +226,21 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
     def cargar_por_entregar():
         # CARGA: actualiza las reservas pendientes de entrega.
         lista_por_entregar.controls.clear()
-        reservas = db.obtener_reservas_por_tienda(tienda_id)
+        try:
+            reservas = db.obtener_reservas_por_tienda(tienda_id)
+        except SupabaseNoDisponible:
+            lista_por_entregar.controls.append(
+                ft.Text("Las reservas requieren conexión a internet.", color="#FFFFFF")
+            )
+            page.update()
+            return
 
         if not reservas:
             lista_por_entregar.controls.append(
                 ft.Text(
                     "✅ No hay reservas pendientes de entrega por ahora.",
                     size=14,
-                    color="#000000",
+                    color="#FFFFFF",
                     weight=ft.FontWeight.BOLD,
                 )
             )
@@ -172,7 +262,12 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
 
             def cambiar_estado(id_reserva, estado_nuevo, mensaje_exito):
                 def ejecutar(e):
-                    if db.cambiar_estado_reserva(id_reserva, estado_nuevo):
+                    try:
+                        actualizado = db.cambiar_estado_reserva(id_reserva, estado_nuevo)
+                    except SupabaseNoDisponible:
+                        mostrar_snackbar(page, "Actualizar pedidos requiere conexión a internet.", color="#B3261E")
+                        return
+                    if actualizado:
                         mostrar_snackbar(page, mensaje_exito, color="#1B5E20")
                         cargar_por_entregar()
                     else:
@@ -231,11 +326,18 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
 
     def cargar_entregadas():
         lista_entregadas.controls.clear()
-        entregadas = db.obtener_entregas_completadas_por_tienda(tienda_id)
+        try:
+            entregadas = db.obtener_entregas_completadas_por_tienda(tienda_id)
+        except SupabaseNoDisponible:
+            lista_entregadas.controls.append(
+                ft.Text("El historial requiere conexión a internet.", color="#FFFFFF")
+            )
+            page.update()
+            return
 
         if not entregadas:
             lista_entregadas.controls.append(
-                ft.Text("📭 Todavía no hay entregas completadas en esta tienda.", size=14, color="#595959")
+                ft.Text("📭 Todavía no hay entregas completadas en esta tienda.", size=14, color="#FFFFFF")
             )
             page.update()
             return
@@ -280,12 +382,22 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                     nuevo_saldo = db.obtener_saldo_tienda(tienda_id)
                     saldo_text.value = f"C${nuevo_saldo:.2f}"
                     page.update()
-                except:
-                    pass
+                except SupabaseNoDisponible:
+                    saldo_text.value = "Billetera: requiere conexión"
+                    page.update()
+                    break
+                except RuntimeError as error:
+                    from utils import log_error
+                    log_error(f"No se pudo actualizar el saldo de la tienda: {error}")
+                    break
         threading.Thread(target=tarea, daemon=True).start()
 
     def confirmar_eliminacion_tienda(e):
-        saldo = db.obtener_saldo_tienda(tienda_id) or 0
+        try:
+            saldo = db.obtener_saldo_tienda(tienda_id) or 0
+        except SupabaseNoDisponible:
+            mostrar_snackbar(page, "Consultar saldo y eliminar la tienda requiere conexión.", color="#B3261E")
+            return
 
         def volver(e):
             dialogo.open = False
@@ -307,6 +419,7 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
                 dialogo.open = False
                 page.update()
                 mostrar_snackbar(page, f"✅ {mensaje} 😊", color="#1B5E20")
+                page._smartstore_context = None
                 go_to_menu()
             except Exception as exc:
                 mostrar_snackbar(page, f"❌ No se pudo eliminar la tienda: {exc}", color="#B3261E")
@@ -349,12 +462,12 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
             f"🏪 Tienda - {tienda.nombre}" if not mostrar_billetera else f"💰 Billetera de la tienda - {tienda.nombre}",
             size=28,
             weight=ft.FontWeight.BOLD,
-            color="#040D4A",
+            color="#00D9FF",
         ),
         logo_control,
-        ft.Text(f"Direccion: {tienda.direccion or 'No indicada'}", size=14, color="#555555"),
-        ft.Text(f"WhatsApp: {tienda.whatsapp or 'No indicado'}", size=14, color="#555555"),
-        ft.Text(f"Tasa de cambio: {tienda.tasa_cambio or 'No indicada'}", size=14, color="#555555"),
+        ft.Text(f"Direccion: {tienda.direccion or 'No indicada'}", size=14, color="#FFFFFF"),
+        ft.Text(f"WhatsApp: {tienda.whatsapp or 'No indicado'}", size=14, color="#FFFFFF"),
+        ft.Text(f"Tasa de cambio: {tienda.tasa_cambio or 'No indicada'}", size=14, color="#FFFFFF"),
     ]
     if not mostrar_billetera:
         contenido_principal.append(ft.ElevatedButton("✏️ Editar tienda", on_click=editar_tienda, bgcolor="#7042B8", color="#FFFFFF"))
@@ -363,12 +476,12 @@ def control_reservas_view(page: ft.Page, go_to_perfil, go_to_menu, tienda_id, mo
     if mostrar_entregas:
         contenido_principal.extend([
             ft.Divider(height=10),
-            ft.Text("📋 Reservas por Entregar", size=18, weight=ft.FontWeight.BOLD, color="#040D4A"),
-            ft.Text("Confirma el pago y registra la entrega con el código de retiro:", size=13, color="#555555"),
+            ft.Text("📋 Reservas por Entregar", size=18, weight=ft.FontWeight.BOLD, color="#FFC247"),
+            ft.Text("Confirma el pago y registra la entrega con el código de retiro:", size=13, color="#FFFFFF"),
             ft.Row([codigo_retiro_field, ft.ElevatedButton("Validar y entregar", on_click=canjear_codigo, bgcolor="#007A61", color="#FFFFFF")], wrap=True, alignment=ft.MainAxisAlignment.CENTER),
             lista_por_entregar,
             ft.Divider(height=10),
-            ft.Text("✅ Historial de Entregas Completadas", size=18, weight=ft.FontWeight.BOLD, color="#040D4A"),
+            ft.Text("✅ Historial de Entregas Completadas", size=18, weight=ft.FontWeight.BOLD, color="#FFC247"),
             lista_entregadas,
         ])
     contenido_principal.append(ft.Divider(height=10))

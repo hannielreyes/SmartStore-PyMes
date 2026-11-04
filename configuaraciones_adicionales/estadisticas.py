@@ -27,8 +27,8 @@ def ajustes_adicionales_view(page: ft.Page, usuario, go_back, abrir_estadisticas
 		content=ft.Column(
 			[
 				ft.Container(height=35),
-				ft.Text("⚙️ Ajustes Adicionales", size=28, weight=ft.FontWeight.BOLD, color="#040D4A", text_align=ft.TextAlign.CENTER),
-				ft.Text("Personaliza tu cuenta y negocio", size=14, color="#555555", text_align=ft.TextAlign.CENTER),
+				ft.Text("⚙️ Ajustes Adicionales", size=28, weight=ft.FontWeight.BOLD, color="#00D9FF", text_align=ft.TextAlign.CENTER),
+				ft.Text("Personaliza tu cuenta y negocio", size=14, color="#FFFFFF", text_align=ft.TextAlign.CENTER),
 				# BOTÓN: abre el perfil personal del usuario.
 				ft.ElevatedButton(
 					"👤 Mi Perfil",
@@ -101,12 +101,12 @@ def estadisticas_view(page: ft.Page, usuario, go_back):
 		barras.controls.append(
 			ft.Row(
 				[
-					ft.Text(nombre_dia, width=78, size=12),
+					ft.Text(nombre_dia, width=78, size=12, color="#FFFFFF"),
 					ft.Container(
 						content=ft.Text(
 							f"C${valor:.2f}" if valor else "Sin ventas",
 							size=11,
-							color="#FFFFFF" if valor else "#555555",
+							color="#FFFFFF" if valor else "#334155",
 						),
 						width=max(ancho, 82 if valor else 82),
 						height=28,
@@ -124,8 +124,8 @@ def estadisticas_view(page: ft.Page, usuario, go_back):
 		content=ft.Column(
 			[
 				ft.Container(height=35),
-				ft.Text("📊 Ventas de la semana", size=28, weight=ft.FontWeight.BOLD, color="#040D4A", text_align=ft.TextAlign.CENTER),
-				ft.Text(f"Fecha actual: {fecha_actual} 😊", size=14, color="#555555", text_align=ft.TextAlign.CENTER),
+				ft.Text("📊 Ventas de la semana", size=28, weight=ft.FontWeight.BOLD, color="#00D9FF", text_align=ft.TextAlign.CENTER),
+				ft.Text(f"Fecha actual: {fecha_actual} 😊", size=14, color="#FFFFFF", text_align=ft.TextAlign.CENTER),
 				ft.Container(
 					content=ft.Text(f"Total vendido: C${total_semana:.2f}", size=20, weight=ft.FontWeight.BOLD, color="#040D4A", text_align=ft.TextAlign.CENTER),
 					bgcolor="#F8FAFC",

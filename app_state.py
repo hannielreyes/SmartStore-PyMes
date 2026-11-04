@@ -5,6 +5,7 @@ from datetime import datetime
 
 import database as db
 from database.models import AlertaInventario
+from database.conexion import SupabaseNoDisponible
 
 
 def cargar_contexto_usuario(usuario_id):
@@ -16,19 +17,25 @@ def cargar_contexto_usuario(usuario_id):
         return db.obtener_productos_usuario(usuario_id)
 
     def cargar_paypal():
-        return db.obtener_paypal_email(usuario_id)
+        try:
+            return db.obtener_paypal_email(usuario_id)
+        except SupabaseNoDisponible:
+            return None
 
     def cargar_reservas():
         reservas = []
         for tienda_id in tienda_ids:
             try:
                 reservas.extend(db.obtener_reservas_por_tienda(tienda_id))
-            except Exception:
-                continue
+            except SupabaseNoDisponible:
+                return []
         return reservas
 
     def cargar_reservas_usuario():
-        return db.obtener_reservas_usuario(usuario_id)
+        try:
+            return db.obtener_reservas_usuario(usuario_id)
+        except SupabaseNoDisponible:
+            return []
 
     with ThreadPoolExecutor(max_workers=3) as executor:
         futuros = {
@@ -47,16 +54,30 @@ def cargar_contexto_usuario(usuario_id):
         for producto in productos
         if int(producto.stock or 0) == 1
     ][:20]
+    catalogo_completo = (
+        not db._supabase_activo()
+        or (
+            db.tiene_catalogo_conocido(usuario_id, "tiendas")
+            and db.tiene_catalogo_conocido(usuario_id, "productos")
+        )
+    )
 
     return {
         "usuario_id": usuario_id,
         "tiendas": tiendas,
         "tienda_actual": tiendas[0] if tiendas else None,
         "productos": productos,
-        "stock_total": sum(int(producto.stock or 0) for producto in productos),
+        "stock_total": (
+            sum(int(producto.stock or 0) for producto in productos)
+            if catalogo_completo
+            else None
+        ),
+        "catalogo_completo": catalogo_completo,
         "alertas_inventario": alertas,
         "reservas": reservas,
         "reservas_usuario": reservas_usuario,
         "paypal": paypal,
+        "sincronizacion_pendiente": db.contar_cambios_pendientes(usuario_id),
+        "conflictos_sincronizacion": db.contar_conflictos_offline(usuario_id),
         "actualizado_en": datetime.now(),
     }

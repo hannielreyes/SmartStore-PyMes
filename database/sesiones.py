@@ -16,6 +16,8 @@ from urllib.parse import quote
 
 # Importaciones necesarias desde usuarios
 from .usuarios import obtener_usuario_por_id, obtener_usuario
+from .offline import guardar_sesion_offline, obtener_sesion_offline
+from .conexion import SupabaseNoDisponible
 
 
 def _hash_token(token: str) -> str:
@@ -103,6 +105,10 @@ def crear_token_sesion(correo, contraseña=None, usuario_id=None):
         )
         conn.commit()
         conn.close()
+    try:
+        guardar_sesion_offline(token, usuario.id, usuario.correo, usuario.nombre)
+    except Exception as exc:
+        print(f"[Sesión offline] No se pudo guardar la sesión local: {exc}")
     return token
 
 
@@ -111,17 +117,27 @@ def obtener_usuario_por_token(token):
         return None
     token_hash = _hash_token(token)
     if _supabase_activo():
-        sesion = _supabase_unico(
-            "sesiones_dispositivo",
-            f"?select=usuario_id&token_hash=eq.{quote(token_hash, safe='')}&revocado=eq.false&limit=1",
-        )
-        if not sesion:
-            return None
-        usuario = _supabase_unico(
-            "usuarios",
-            f"?select=id,nombre,correo&id=eq.{sesion['usuario_id']}&limit=1",
-        )
-        return UsuarioSesion(usuario["id"], usuario["nombre"], usuario["correo"]) if usuario else None
+        try:
+            sesion = _supabase_unico(
+                "sesiones_dispositivo",
+                f"?select=usuario_id&token_hash=eq.{quote(token_hash, safe='')}&revocado=eq.false&limit=1",
+            )
+            if not sesion:
+                return None
+            usuario = _supabase_unico(
+                "usuarios",
+                f"?select=id,nombre,correo&id=eq.{sesion['usuario_id']}&limit=1",
+            )
+            if not usuario:
+                return None
+            resultado = UsuarioSesion(usuario["id"], usuario["nombre"], usuario["correo"])
+            guardar_sesion_offline(token, resultado.id, resultado.correo, resultado.nombre)
+            return resultado
+        except SupabaseNoDisponible:
+            usuario_offline = obtener_sesion_offline(token)
+            if usuario_offline:
+                return usuario_offline
+            raise
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(

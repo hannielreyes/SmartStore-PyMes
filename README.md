@@ -109,9 +109,13 @@ No uses una clave `service_role`, `secret` o similar en la aplicacion.
 
 ## Migracion de la base compartida
 
-El esquema preparado para Supabase esta en `supabase_schema.sql`. Ejecutalo desde `SQL Editor` de Supabase antes de cambiar la aplicacion a la base central.
+El esquema preparado para Supabase esta en `supabase_schema.sql`. Ejecutalo desde `SQL Editor` de Supabase antes de cambiar la aplicacion a la base central. Para una base que ya existe, ejecuta tambien `supabase_tienda_unica_migration.sql`; esta agrega la clave de idempotencia que requiere la sincronizacion offline.
 
-La aplicacion aun conserva SQLite durante esta etapa para no mezclar datos ni perder informacion. Cuando el esquema este creado, se migrara la capa `database.py` a una API central y se exportaran los datos existentes.
+## Modo sin conexion
+
+Despues de iniciar sesion al menos una vez con internet, SmartStore conserva en SQLite del dispositivo una validacion local de esa sesion y una copia del catalogo propio. Sin red, permite consultar productos, crear la tienda si aun no existe y registrar o editar la tienda y sus productos. Los cambios quedan en una cola durable y se envian automaticamente al recuperar la conexion (hasta cada 60 segundos mientras la sesion siga abierta).
+
+Supabase prevalece si alguien cambio en remoto los mismos campos que se editaron offline: el valor local queda marcado como conflicto y no sobrescribe el remoto. Reservas, pagos, entregas, cambios de saldo y eliminaciones siguen requiriendo internet. Para evitar duplicados, ejecuta la migracion `supabase_tienda_unica_migration.sql` antes de usar la cola offline con Supabase.
 - Incluir logs de `adb` o un script de CI que valide la inclusión de `flet_camera` en el build.
 
 ## Estado de seguridad y pendientes
